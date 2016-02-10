@@ -1,19 +1,27 @@
 ; state.scm
 
 (define declare
-  (lambda (var s)
+  (lambda (var s)s))
 
 (define assign
-  (lambda (var value s)
-
-(define get
-  (lambda (var s)
+  (lambda (var value s)s))
 
 (define assigned?
-  (lambda (var s)
+  (lambda (var s)s))
 
 (define declared?
-  (lambda (var s)
+  (lambda (var s)s))
+
+
+
+    
+(define first-var
+  (lambda (s)
+    (car (state-car s))))
+
+(define first-val
+  (lambda (s)
+    (cadr (state-car s))))
     
 (define state-cdr
   (lambda (s)
@@ -31,5 +39,12 @@
   (lambda (var s)
     (cond
       ((null? (car s)) (error var "variable not declared"))
-      ((eq? (caar s) var) (state-cdr s))
+      ((eq? (first-var s) var) (state-cdr s))
       (else (state-cons (state-car s) (state-remove var (state-cdr s)))))))
+
+(define state-get
+  (lambda (var s)
+    (cond
+      ((null? (car s)) (error var "variable not declared"))
+      ((eq? (first-var s) var) (first-val s))
+      (else (state-get var (state-cdr s))))))
