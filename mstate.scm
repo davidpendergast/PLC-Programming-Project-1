@@ -35,7 +35,7 @@
 (define M_assign
   (lambda (variable expression s)
     (if (state-declared? variable s)
-        (state-assign))
+        (state-assign))))
 
 ; takes statement of form ('return expression), returns new state
 (define M_return
@@ -71,3 +71,37 @@
 
 (M_state '(var x) '(()()))
 ; (M_state '(var x 10) '((y z)(15 40))) ; M_value not ready
+
+(define operator car)
+(define operand1 cadr)
+(define operand2 caddr)
+
+(define M_value
+  (lambda (expression s)
+    (cond
+      ((number? expression) expression)
+      ((symbol? expression) (state-get expression s))
+      ((eq? (operator expression) '+) (+ (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
+      ((eq? (operator expression) '-) (- (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
+      ((eq? (operator expression) '*) (* (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
+      ((eq? (operator expression) '/) (quotient (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
+      ((eq? (operator expression) '%) (remainder (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
+      (else (error 'unknown "unknown expression")))))
+
+(define M_boolean
+  (lambda (expression s)
+    (cond
+      ((number? expression) expression)
+      ((symbol? expression) (state-get expression s))
+      ((eq? (operator expression) '==) (equal? (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
+      ((eq? (operator expression) '!=) (not (equal? (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s))))
+      ((eq? (operator expression) '<) (< (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
+      ((eq? (operator expression) '>) (> (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
+      ((eq? (operator expression) '<=) (<= (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
+      ((eq? (operator expression) '>=) (>= (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
+      ((eq? (operator expression) '&&) (and (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
+      ((eq? (operator expression) '||) (or (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
+      ((eq? (operator expression) '!) (not (M_boolean (operand1 expression) s)))
+      (else (error 'unknown "unknown expression")))))
+  
+    
