@@ -48,3 +48,16 @@
       ((null? (car s)) (error var "variable not declared"))
       ((eq? (first-var s) var) (first-val s))
       (else (state-get var (state-cdr s))))))
+
+(define state-declared?
+  (lambda (var s)
+    (cond
+      ((null? (car s)) #f)
+      ((eq? (first-var s) var) #t)
+      (else (state-declared? var (state-cdr s)))))) 
+
+(define state-declare
+  (lambda (var s)
+    (if (state-declared? var s)
+        (error var "variable already declared")
+        (state-cons (list var '()) s))))
