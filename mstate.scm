@@ -1,5 +1,5 @@
-#lang racket
-(load "parser.scm" "state.scm")
+(load "simpleParser.scm")
+(load "state.scm")
 ; mstate.scm
 
 ;(define interpret
@@ -19,26 +19,14 @@
   (lambda (stmt s)
     (cond
       ((declare? stmt) (M_declare (cadr stmt) s))
-      ((declare_with_assign? stmt) (M_declare_with_assign (cadr stmt) (caddr stmt)))
+      ((declare_with_assign? stmt) (M_declare_with_assign (cadr stmt) (caddr stmt) s))
       (else '())
       )))
-
-(define declare?
-  (lambda (stmt)
-    (if (eq? (length stmt) 2)
-        (eq? 'var (car stmt))
-        #f)))
 
 (define M_declare
   (lambda (variable s)
     (state-declare variable s)))
 
-(define declare_with_assign?
-  (lambda (stmt)
-    (if (eq? (length stmt) 3)
-        (eq? 'var (car stmt))
-        #f)))
-         
 (define M_declare_with_assign
   (lambda (variable expression s)
     (state-assign variable (M_value expression (state-declare variable s)) (state-declare variable s))))
@@ -46,7 +34,8 @@
 ; takes statement of form (= variable expression), returns new state
 (define M_assign
   (lambda (variable expression s)
-    #f))
+    (if (state-declared? variable s)
+        (state-assign))
 
 ; takes statement of form ('return expression), returns new state
 (define M_return
@@ -65,8 +54,20 @@
   (lambda (condition loop-body s)
     #f))
 
-(define length
-  (lambda (list)
-    (if (null? list)
-        0
-        ((+ 1 (length (cdr list)))))))
+;-------------------------------------------;
+; Functions to determine types of statement |
+;-------------------------------------------;
+(define declare?
+  (lambda (stmt)
+    (if (eq? (length stmt) 2)
+        (eq? 'var (car stmt))
+        #f)))
+
+(define declare_with_assign?
+  (lambda (stmt)
+    (if (eq? (length stmt) 3)
+        (eq? 'var (car stmt))
+        #f)))
+
+(M_state '(var x) '(()()))
+; (M_state '(var x 10) '((y z)(15 40))) ; M_value not ready

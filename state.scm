@@ -1,5 +1,3 @@
-; state.scm
-
 (define first-var
   (lambda (s)
     (car (state-car s))))
