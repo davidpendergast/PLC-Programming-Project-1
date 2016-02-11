@@ -1,3 +1,7 @@
+; David Pendergast
+; Joel Kalos
+; Kevin Nash
+
 (load "simpleParser.scm")
 (load "state.scm")
  
@@ -5,6 +9,7 @@
 (define operand1 cadr)
 (define operand2 caddr)
 
+; returns the numerical value of given expression.
 (define M_value
   (lambda (expression s)
     (cond
@@ -17,6 +22,7 @@
       ((eq? (operator expression) '%) (remainder (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
       (else (error 'unknown expression "unknown expression")))))
 
+; returns the boolean value of given expression.
 (define M_boolean
   (lambda (expression s)
     (cond
@@ -33,11 +39,12 @@
       ((eq? (operator expression) '!) (not (M_boolean (operand1 expression) s)))
       (else (error 'unknown expression "unknown expression")))))
 
+; takes the filename of a valid program, and returns that program's return value.
 (define execfile
   (lambda (filename)
     (interpret (parser filename) '(()()))))
 
-; takes a parse tree
+; takes a parse tree, returns the return value of the program. 
 (define interpret
   (lambda (parsetree s)
     (cond
@@ -45,6 +52,8 @@
       ((null? parsetree) (error "parse tree reached no return statement."))
       (else (interpret (cdr parsetree) (M_state (car parsetree) s))))))
 
+; returns the state which results from executing the given statement on the given state.
+; if the statement results in a value being returned, then that value is returned instead
 (define M_state
   (lambda (stmt s)
     (cond
@@ -55,8 +64,7 @@
       ((if_with_else? stmt) (M_if_else (cadr stmt) (caddr stmt) (cadddr stmt) s))
       ((while? stmt) (M_while (cadr stmt) (caddr stmt) s))
       ((return? stmt) (M_return (cadr stmt) s))
-      (else '())
-      )))
+      (else (error stmt "unknown statement.")))))
 
 (define M_declare
   (lambda (variable s)
@@ -93,9 +101,7 @@
         (M_while condition  loop-body (M_state loop-body s))
         s)))
 
-;-------------------------------------------;
-; Functions to determine types of statement |
-;-------------------------------------------;
+; the following functions determine what kind of statement they are passed.
 (define declare?
   (lambda (stmt)
     (if (eq? (length stmt) 2)
@@ -147,9 +153,5 @@
 (M_state '(if (< x 2) (= x 2)) '((x)(1)))
 (M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '((x)(0)))
 
-(parser "testfile.txt")
+; running the sample file.
 (execfile "testfile.txt")
-
-
-  
-;(M_boolean '(> 9 0) '(()()))
