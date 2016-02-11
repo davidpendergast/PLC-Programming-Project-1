@@ -52,6 +52,9 @@
       ((declare? stmt) (M_declare (cadr stmt) s))
       ((declare_with_assign? stmt) (M_declare_with_assign (cadr stmt) (caddr stmt) s))
       ((assign? stmt) (M_assign (cadr stmt) (caddr stmt) s))
+      ((if? stmt) (M_if (cadr stmt) (caddr stmt)))
+      ((if_with_else? stmt) (M_if_else (cadr stmt) (caddr stmt) (cadddr stmt)))
+      ((while? stmt) (M_while (cadr stmt) (caddr stmt) s))
       (else '())
       )))
 
@@ -63,7 +66,6 @@
   (lambda (variable expression s)
     (state-assign variable (M_value expression (state-declare variable s)) (state-declare variable s))))
 
-; takes statement of form (= variable expression), returns new state
 (define M_assign
   (lambda (variable expression s)
     (if (state-declared? variable s)
@@ -84,7 +86,9 @@
 
 (define M_while
   (lambda (condition loop-body s)
-    #f))
+    (if (M_boolean condition s)
+        (M_while condition  loop-body (M_state loop-body s))
+        s)))
 
 ;-------------------------------------------;
 ; Functions to determine types of statement |
@@ -107,10 +111,35 @@
         (eq? '= (car stmt))
         #f)))
 
+(define return?
+  (lambda (stmt)
+    (if (eq? (length stmt) 2)
+        (eq? 'return (car stmt))
+        #f)))
+
+(define if?
+  (lambda (stmt)
+    (if (eq? (length stmt) 3)
+        (eq? 'if (car stmt))
+        #f)))
+
+(define if_with_else?
+  (lambda (stmt)
+    (if (eq? (length stmt) 4)
+        (eq? 'if (car stmt))
+        #f)))
+
+(define while?
+  (lambda (stmt)
+    (if (eq? (length stmt) 3)
+        (eq? 'while (car stmt))
+        #f)))
+
 (M_state '(var x) '(()()))
 (M_state '(var x 10) '((y z)(15 40)))
 (M_state '(= x 20) '((x) (10)))
 (M_state '(= x 20) '((y x z) (0 () 6)))
+(M_state '(while (< i 10) (= i (+ i x))) '((i x)(0 3)))
 
 
   
