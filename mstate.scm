@@ -27,6 +27,9 @@
   (lambda (expression s)
     (cond
       ((number? expression) expression)
+      ((boolean? expression) expression)
+      ((eq? 'true expression) #t)
+      ((eq? 'false expression) #f)
       ((symbol? expression) (state-get expression s))
       ((eq? (operator expression) '==) (equal? (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
       ((eq? (operator expression) '!=) (not (equal? (M_value (operand1 expression) s) (M_value (operand2 expression) s))))
@@ -39,6 +42,19 @@
       ((eq? (operator expression) '!) (not (M_boolean (operand1 expression) s)))
       (else (error 'unknown expression "unknown expression")))))
 
+(define condition?
+  (lambda (expression s)
+    (cond
+      ((boolean? expression) #t)
+      ((eq? 'true expression) #t)
+      ((eq? 'false expression) #t)
+      ((symbol? expression) (boolean? (state-get expression s)))
+      ((not (list? expression)) #f)
+      (else (or (eq? (operator expression) '==) (eq? (operator expression) '!=)
+                (eq? (operator expression) '<) (eq? (operator expression) '>) (eq? (operator expression) '<=)
+                (eq? (operator expression) '>=) (eq? (operator expression) '&&) (eq? (operator expression) '||)
+                (eq? (operator expression) '!))))))
+  
 ; takes the filename of a valid program, and returns that program's return value.
 (define execfile
   (lambda (filename)
@@ -72,11 +88,15 @@
 
 (define M_declare_with_assign
   (lambda (variable expression s)
-    (state-assign variable (M_value expression (state-declare variable s)) (state-declare variable s))))
+    (if (condition? expression s)
+        (state-assign variable (M_boolean expression (state-declare variable s)) (state-declare variable s))
+        (state-assign variable (M_value expression (state-declare variable s)) (state-declare variable s)))))
 
 (define M_assign
   (lambda (variable expression s)
-    (state-assign variable (M_value expression s) s)))
+    (if (condition? expression s)
+        (state-assign variable (M_boolean expression s) s)
+        (state-assign variable (M_value expression s) s))))
 
 ; returns a value (number), not a state
 (define M_return
@@ -147,6 +167,7 @@
 ; tests
 (M_state '(var x) '(()()))
 (M_state '(var x 10) '((y z)(15 40)))
+(M_state '(var x true) '((y z)(15 40)))
 (M_state '(= x 20) '((x) (10)))
 (M_state '(= x 20) '((y x z) (0 () 6)))
 (M_state '(while (< i 10) (= i (+ i x))) '((i x)(0 3)))
