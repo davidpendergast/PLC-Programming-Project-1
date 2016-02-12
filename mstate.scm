@@ -21,7 +21,7 @@
       ((eq? (operator expression) '*) (* (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
       ((eq? (operator expression) '/) (quotient (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
       ((eq? (operator expression) '%) (remainder (M_value (operand1 expression) s) (M_value (operand2 expression) s)))
-      (else (error 'unknown expression "unknown expression")))))
+      (else (error "unknown expression" expression)))))
 
 ; returns the boolean value of given expression.
 (define M_boolean
@@ -38,7 +38,7 @@
       ((eq? (operator expression) '&&) (and (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
       ((eq? (operator expression) '||) (or (M_boolean (operand1 expression) s) (M_boolean (operand2 expression) s)))
       ((eq? (operator expression) '!) (not (M_boolean (operand1 expression) s)))
-      (else (error 'unknown expression "unknown expression")))))
+      (else (error "unknown expression" expression)))))
 
 ; takes the filename of a valid program, and returns that program's return value.
 (define execfile
