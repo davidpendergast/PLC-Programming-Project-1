@@ -69,7 +69,7 @@
   (lambda (parsetree s)
     (cond
       ((number? s) s) ; return value reached
-      ((boolean? s) s)
+      ((boolean? s) (if (eq? s #t) ('true) ('false)))
       ((null? parsetree) (error "parse tree reached no return statement."))
       (else (interpret (cdr parsetree) (M_state (car parsetree) s))))))
 
