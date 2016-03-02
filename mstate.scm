@@ -90,7 +90,13 @@
       ((number? s) s) ; return value reached
       ((boolean? s) (if (eq? s #t) 'true 'false))
       ((null? parsetree) (error "parse tree reached no return statement"))
-      (else (interpret (cdr parsetree) (M_state (car parsetree) s))))))
+      (else (interpret (cdr parsetree) (evaluate_stmt (car parsetree) s))))))
+
+(define evaluate_stmt
+  (lambda (stmt s)
+    (if (return? stmt)
+        (M_return (cadr stmt) s)
+        (M_state stmt s))))
 
 ; Returns the state which results from executing the given statement OR
 ; Returns a value if the statement simplifies to a value
@@ -140,21 +146,21 @@
 (define M_if_else
   (lambda (condition then-stmt else-stmt s)
    (if (M_boolean condition s)
-        (M_state then-stmt s)
-        (M_state else-stmt s))))
+        (evaluate_stmt then-stmt s)
+        (evaluate_stmt else-stmt s))))
 
 ; Executes an if statement according to its condition
 (define M_if
   (lambda (condition then-stmt s)
     (if (M_boolean condition s)
-        (M_state then-stmt s)
+        (evaluate_stmt then-stmt s)
         s)))
 
 ; Executes a while loop according to its condition
 (define M_while
   (lambda (condition loop-body s)
     (if (M_boolean condition s)
-        (M_while condition  loop-body (M_state loop-body s))
+        (M_while condition  loop-body (evaluate_stmt loop-body s))
         s)))
 
 ; Returns true if given a statement that only declares a variable
