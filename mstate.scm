@@ -5,7 +5,7 @@
 ; Kevin Nash
 
 (load "simpleParser.scm")
-(load "state.scm")
+(load "state-stack.scm")
 
 ; Defines the elements of an expression in prefix notation
 (define operator car)
@@ -20,7 +20,7 @@
       ((boolean? expr) expr)
       ((eq? 'true expr) #t)
       ((eq? 'false expr) #f)
-      ((symbol? expr) (state-get expr s))
+      ((symbol? expr) (stack-get expr s))
       ((and (eq? (operator expr) '-)
             (null? (cddr expr))) (* (M_value (operand1 expr) s) -1))
       ((eq? (operator expr) '+) (+ (M_value (operand1 expr) s)
@@ -43,7 +43,7 @@
       ((boolean? expr) expr)
       ((eq? 'true expr) #t)
       ((eq? 'false expr) #f)
-      ((symbol? expr) (state-get expr s))
+      ((symbol? expr) (stack-get expr s))
       ((eq? (operator expr) '==) (equal? (M_value (operand1 expr) s)
                                          (M_value (operand2 expr) s)))
       ((eq? (operator expr) '!=) (not (equal? (M_value (operand1 expr) s)
@@ -70,7 +70,7 @@
       ((boolean? expr) #t)
       ((eq? 'true expr) #t)
       ((eq? 'false expr) #t)
-      ((symbol? expr) (boolean? (state-get expr s)))
+      ((symbol? expr) (boolean? (stack-get expr s)))
       ((not (list? expr)) #f)
       (else (or (eq? (operator expr) '==) (eq? (operator expr) '!=)
                 (eq? (operator expr) '<) (eq? (operator expr) '>)
@@ -81,7 +81,7 @@
 ; Given the filename of a valid program, returns the return value of the program
 (define execfile
   (lambda (filename)
-    (interpret (parser filename) (empty-state))))
+    (interpret (parser filename) (empty-state-stack))))
 
 ; Given a parse tree, returns the return value of the program
 (define interpret
@@ -117,23 +117,23 @@
 ; Declares a variable
 (define M_declare
   (lambda (variable s)
-    (state-declare variable s)))
+    (stack-declare variable s)))
 
 ; Declares a variable and assigns it a numerical or boolean value
 (define M_declare_with_assign
   (lambda (var expr s)
     (if (condition? expr s)
-        (state-assign var (M_boolean expr (state-declare var s))
-                      (state-declare var s))
-        (state-assign var (M_value expr (state-declare var s))
-                      (state-declare var s)))))
+        (stack-assign var (M_boolean expr (stack-declare var s))
+                      (stack-declare var s))
+        (stack-assign var (M_value expr (stack-declare var s))
+                      (stack-declare var s)))))
 
 ; Assigns a numerical or boolean value to a variable
 (define M_assign
   (lambda (var expr s)
     (if (condition? expr s)
-        (state-assign var (M_boolean expr s) s)
-        (state-assign var (M_value expr s) s))))
+        (stack-assign var (M_boolean expr s) s)
+        (stack-assign var (M_value expr s) s))))
 
 ; Returns a numerical value, not a state
 (define M_return
@@ -215,14 +215,14 @@
 ; -----------
 ; State tests
 ; -----------
-(M_state '(var x) (empty-state))
-(M_state '(var x 10) '((y z)(15 40)))
-(M_state '(var x true) '((y z)(15 40)))
-(M_state '(= x 20) '((x) (10)))
-(M_state '(= x 20) '((y x z) (0 () 6)))
-(M_state '(while (< i 10) (= i (+ i x))) '((i x)(0 3)))
-(M_state '(if (< x 2) (= x 2)) '((x)(1)))
-(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '((x)(0)))
+(M_state '(var x) (empty-state-stack))
+(M_state '(var x 10) '(((y z)(15 40))))
+(M_state '(var x true) '(((y z)(15 40))))
+(M_state '(= x 20) '(((x) (10))))
+(M_state '(= x 20) '(((y x z) (0 () 6))))
+(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))))
+(M_state '(if (< x 2) (= x 2)) '(((x)(1))))
+(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))))
 
 ; --------------
 ; Language tests
