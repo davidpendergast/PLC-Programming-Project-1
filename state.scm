@@ -69,4 +69,9 @@
       ((null? (car s)) (error var "variable not declared"))
       ((eq? (first-var s) var) (list (car s) (cons val (cdadr s))))
       (else (state-cons (state-car s) (state-assign var val (state-cdr s)))))))
+
+; Returns (()())
+(define empty-state
+  (lambda ()
+    '(()())))
     

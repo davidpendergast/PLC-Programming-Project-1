@@ -81,7 +81,7 @@
 ; Given the filename of a valid program, returns the return value of the program
 (define execfile
   (lambda (filename)
-    (interpret (parser filename) '(()()))))
+    (interpret (parser filename) (empty-state))))
 
 ; Given a parse tree, returns the return value of the program
 (define interpret
@@ -215,7 +215,7 @@
 ; -----------
 ; State tests
 ; -----------
-(M_state '(var x) '(()()))
+(M_state '(var x) (empty-state))
 (M_state '(var x 10) '((y z)(15 40)))
 (M_state '(var x true) '((y z)(15 40)))
 (M_state '(= x 20) '((x) (10)))
