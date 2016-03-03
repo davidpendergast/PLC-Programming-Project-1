@@ -81,36 +81,36 @@
 ; Given the filename of a valid program, returns the return value of the program
 (define execfile
   (lambda (filename)
-    (interpret (parser filename) (empty-state-stack))))
+    (interpret (parser filename) (empty-state-stack) (lambda (v) v))))
 
 ; Given a parse tree, returns the return value of the program
 (define interpret
-  (lambda (parsetree s)
+  (lambda (parsetree s return)
     (cond
       ((number? s) s) ; return value reached
       ((boolean? s) (if (eq? s #t) 'true 'false))
       ((null? parsetree) (error "parse tree reached no return statement"))
-      (else (interpret (cdr parsetree) (evaluate_stmt (car parsetree) s))))))
+      (else (interpret (cdr parsetree) (evaluate_stmt (car parsetree) s return) return)))))
 
 (define evaluate_stmt
-  (lambda (stmt s)
+  (lambda (stmt s return)
     (if (return? stmt)
-        (M_return (cadr stmt) s)
-        (M_state stmt s))))
+        (M_return (cadr stmt) s return)
+        (M_state stmt s return))))
 
 ; Returns the state which results from executing the given statement OR
 ; Returns a value if the statement simplifies to a value
 (define M_state
-  (lambda (stmt s)
+  (lambda (stmt s return)
     (cond
       ((declare? stmt) (M_declare (cadr stmt) s))
       ((declare_with_assign? stmt) (M_declare_with_assign (cadr stmt)
                                                           (caddr stmt) s))
       ((assign? stmt) (M_assign (cadr stmt) (caddr stmt) s))
-      ((if? stmt) (M_if (cadr stmt) (caddr stmt) s))
+      ((if? stmt) (M_if (cadr stmt) (caddr stmt) s return))
       ((if_with_else? stmt) (M_if_else (cadr stmt) (caddr stmt)
-                                       (cadddr stmt) s))
-      ((while? stmt) (M_while (cadr stmt) (caddr stmt) s))
+                                       (cadddr stmt) s return))
+      ((while? stmt) (M_while (cadr stmt) (caddr stmt) s return))
       ((return? stmt) (M_return (cadr stmt) s))
       (else (error stmt "unknown statement")))))
 
@@ -137,30 +137,30 @@
 
 ; Returns a numerical value, not a state
 (define M_return
-  (lambda (expr s)
+  (lambda (expr s return)
     (if (condition? expr s)
-        (M_boolean expr s)
-        (M_value expr s))))
+        (return (M_boolean expr s))
+        (return (M_value expr s)))))
 
 ; Executes an if-else pair of statements according to the if condition
 (define M_if_else
-  (lambda (condition then-stmt else-stmt s)
+  (lambda (condition then-stmt else-stmt s return)
    (if (M_boolean condition s)
-        (evaluate_stmt then-stmt s)
-        (evaluate_stmt else-stmt s))))
+        (evaluate_stmt then-stmt s return)
+        (evaluate_stmt else-stmt s return))))
 
 ; Executes an if statement according to its condition
 (define M_if
-  (lambda (condition then-stmt s)
+  (lambda (condition then-stmt s return)
     (if (M_boolean condition s)
-        (evaluate_stmt then-stmt s)
+        (evaluate_stmt then-stmt s return)
         s)))
 
 ; Executes a while loop according to its condition
 (define M_while
-  (lambda (condition loop-body s)
+  (lambda (condition loop-body s return)
     (if (M_boolean condition s)
-        (M_while condition  loop-body (evaluate_stmt loop-body s))
+        (M_while condition  loop-body (evaluate_stmt loop-body s return) return)
         s)))
 
 ; Returns true if given a statement that only declares a variable
@@ -215,14 +215,14 @@
 ; -----------
 ; State tests
 ; -----------
-(M_state '(var x) (empty-state-stack))
-(M_state '(var x 10) '(((y z)(15 40))))
-(M_state '(var x true) '(((y z)(15 40))))
-(M_state '(= x 20) '(((x) (10))))
-(M_state '(= x 20) '(((y x z) (0 () 6))))
-(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))))
-(M_state '(if (< x 2) (= x 2)) '(((x)(1))))
-(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))))
+(M_state '(var x) (empty-state-stack) (lambda (v) v))
+(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v))
+(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v))
+(M_state '(= x 20) '(((x) (10))) (lambda (v) v))
+(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v))
+(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v))
+(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v))
+(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v))
 
 ; --------------
 ; Language tests
