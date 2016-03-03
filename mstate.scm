@@ -77,7 +77,7 @@
                 (eq? (operator expr) '<=) (eq? (operator expr) '>=)
                 (eq? (operator expr) '&&) (eq? (operator expr) '||)
                 (eq? (operator expr) '!))))))
-  
+
 ; Given the filename of a valid program, returns the return value of the program
 (define execfile
   (lambda (filename)
@@ -111,8 +111,19 @@
       ((if_with_else? stmt) (M_if_else (cadr stmt) (caddr stmt)
                                        (cadddr stmt) s return))
       ((while? stmt) (M_while (cadr stmt) (caddr stmt) s return))
-      ((return? stmt) (M_return (cadr stmt) s))
+      ((begin? stmt) (M_begin (cdr stmt) s return))
       (else (error stmt "unknown statement")))))
+
+;Begins a block of statements and returns the state following the block
+(define M_begin
+  (lambda (stmts s return)
+    (letrec ((loop (lambda (stmts s)
+                     (cond
+                       ((number? s) s) ; return value reached
+                       ((boolean? s) (if (eq? s #t) 'true 'false))
+                       ((null? stmts) (stack-pop s))
+                       (else (loop (cdr stmts) (evaluate_stmt (car stmts) s return)))))))
+      (loop stmts (stack-push (empty-state) s)))))
 
 ; Declares a variable
 (define M_declare
@@ -145,7 +156,7 @@
 ; Executes an if-else pair of statements according to the if condition
 (define M_if_else
   (lambda (condition then-stmt else-stmt s return)
-   (if (M_boolean condition s)
+    (if (M_boolean condition s)
         (evaluate_stmt then-stmt s return)
         (evaluate_stmt else-stmt s return))))
 
@@ -190,6 +201,12 @@
     (if (eq? (length stmt) 2)
         (eq? 'return (car stmt))
         #f)))
+
+; Returns true if given a begin statement
+(define begin?
+  (lambda (stmt)
+    (eq? 'begin (car stmt))))
+
 
 ; Returns true if given an if statement that is NOT followed by an else
 (define if?
