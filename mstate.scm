@@ -81,16 +81,16 @@
 ; Given the filename of a valid program, returns the return value of the program
 (define execfile
   (lambda (filename)
-    (interpret (parser filename) (empty-state-stack) (lambda (v) v))))
+       (interpret (parser filename) (empty-state-stack))))
 
 ; Given a parse tree, returns the return value of the program
 (define interpret
-  (lambda (parsetree s return)
-    (cond
-      ((number? s) s) ; return value reached
-      ((boolean? s) (if (eq? s #t) 'true 'false))
-      ((null? parsetree) (error "parse tree reached no return statement"))
-      (else (interpret (cdr parsetree) (evaluate_stmt (car parsetree) s return) return)))))
+  (lambda (parsetree s)
+    (call/cc
+     (lambda (return)
+       (cond
+         ((null? parsetree) (error "parse tree reached no return statement"))
+         (else (interpret (cdr parsetree) (evaluate_stmt (car parsetree) s return))))))))
 
 (define evaluate_stmt
   (lambda (stmt s return)
@@ -119,8 +119,6 @@
   (lambda (stmts s return)
     (letrec ((loop (lambda (stmts s)
                      (cond
-                       ((number? s) s) ; return value reached
-                       ((boolean? s) (if (eq? s #t) 'true 'false))
                        ((null? stmts) (stack-pop s))
                        (else (loop (cdr stmts) (evaluate_stmt (car stmts) s return)))))))
       (loop stmts (stack-push (empty-state) s)))))
@@ -150,7 +148,9 @@
 (define M_return
   (lambda (expr s return)
     (if (condition? expr s)
-        (return (M_boolean expr s))
+        (if (M_boolean expr s)
+            (return 'true)
+            (return 'false))
         (return (M_value expr s)))))
 
 ; Executes an if-else pair of statements according to the if condition
