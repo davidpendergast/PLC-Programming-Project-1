@@ -143,7 +143,6 @@
   (lambda (stmts s return break continue throw)
     (call/cc
      (lambda (throw2)
-       (display stmts)
        (M_begin (cadar (cddr stmts))
                 (M_begin (car stmts) s return break continue
                          (lambda (v1 v2) (throw2 (M_begin (cadar (cddr stmts))
@@ -347,27 +346,28 @@
 ; --------------------
 ; Language tests (P2)
 ; --------------------
-;(display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
-;(display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
-;(display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
-;(display "P2 test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
-; When enabled, test 5 should produce a "variable already declared" error
+(display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
+(display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
+(display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
+(display "P2 test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
+; When enabled, test 5 should produce a "variable not declared" error.
 ;(display "P2 test 5: ") (execfile "p2_tests/test5.txt")
-;(display "P2 test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
-;(display "P2 test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
-;(display "P2 test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
-;(display "P2 test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
-;(display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
-; When enabled, tests 11-12 should produce a "variable already declared" error
+(display "P2 test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
+(display "P2 test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
+(display "P2 test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
+(display "P2 test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
+(display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
+; When enabled, test 11 should throw a "variable not declared" error.
 ;(display "P2 test 11: ") (execfile "p2_tests/test11.txt")
-;(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
+(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
+; When enabled, test 13 should produce a "break not in loop" error.
 ;(display "P2 test 13: ") (execfile "p2_tests/test13.txt")
-;(display "P2 test 14: ") (equal? (execfile "p2_tests/test14.txt") 12)
+(display "P2 test 14: ") (equal? (execfile "p2_tests/test14.txt") 12)
 (display "P2 test 15: ") (equal? (execfile "p2_tests/test15.txt") 125)
 (display "P2 test 16: ") (equal? (execfile "p2_tests/test16.txt") 110)
 (display "P2 test 17: ") (equal? (execfile "p2_tests/test17.txt") 2000400)
 (display "P2 test 18: ") (equal? (execfile "p2_tests/test18.txt") 101)
 ; When enabled, test 19 should produce a "1" error (throw statement)
-(display "P2 test 19: ") (execfile "p2_tests/test19.txt")
+;(display "P2 test 19: ") (execfile "p2_tests/test19.txt")
 ; Test 20 is expected to fail. The feature it tests is not implemented.
 ;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
