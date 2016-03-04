@@ -8,9 +8,11 @@
 (load "state-stack.scm")
 
 ; Defines the elements of an expression in prefix notation
+(define block cdr)
 (define operator car)
 (define operand1 cadr)
 (define operand2 caddr)
+(define operand3 cadddr)
 
 ; Returns the numerical value of given expression
 (define M_value
@@ -90,28 +92,32 @@
      (lambda (return)
        (if (null? parsetree)
            (error "parse tree reached no return statement")
-           (interpret (cdr parsetree) (M_state (car parsetree) s return (lambda (v) (error "break not in a loop")) (lambda (v) (error "continue not in a loop")) (lambda (v) (error "throw not inside try")))))))))
+           (interpret (cdr parsetree)
+                      (M_state (car parsetree) s return
+                               (lambda (v) (error "break not in a loop"))
+                               (lambda (v) (error "continue not in a loop"))
+                               (lambda (v) (error "throw not inside try")))))))))
 
 ; Returns the state which results from executing the given statement OR
 ; Returns a value if the statement simplifies to a value
 (define M_state
   (lambda (stmt s return break continue throw)
     (cond
-      ((declare? stmt) (M_declare (cadr stmt) s))
-      ((declare_with_assign? stmt) (M_declare_with_assign (cadr stmt)
-                                                          (caddr stmt) s))
-      ((assign? stmt) (M_assign (cadr stmt) (caddr stmt) s))
-      ((if? stmt) (M_if (cadr stmt) (caddr stmt) s return break continue throw))
-      ((if_with_else? stmt) (M_if_else (cadr stmt) (caddr stmt)
-                                       (cadddr stmt) s return break continue throw))
-      ((while? stmt) (M_while (cadr stmt) (caddr stmt) s return throw))
-      ((return? stmt) (M_return (cadr stmt) s return))
-      ((begin? stmt) (M_begin (cdr stmt) s return break continue throw))
-      ((try? stmt) (M_try (cdr stmt) s return break continue))
-      ((try_with_finally? stmt) (M_try_with_finally (cdr stmt) s return break continue))
+      ((declare? stmt) (M_declare (operand1 stmt) s))
+      ((declare_with_assign? stmt) (M_declare_with_assign (operand1 stmt)
+                                                          (operand2 stmt) s))
+      ((assign? stmt) (M_assign (operand1 stmt) (operand2 stmt) s))
+      ((if? stmt) (M_if (operand1 stmt) (operand2 stmt) s return break continue throw))
+      ((if_with_else? stmt) (M_if_else (operand1 stmt) (operand2 stmt)
+                                       (operand3 stmt) s return break continue throw))
+      ((while? stmt) (M_while (operand1 stmt) (operand2 stmt) s return throw))
+      ((return? stmt) (M_return (operand1 stmt) s return))
+      ((begin? stmt) (M_begin (block stmt) s return break continue throw))
+      ((try? stmt) (M_try (block stmt) s return break continue))
+      ((try_with_finally? stmt) (M_try_with_finally (block stmt) s return break continue))
       ((break? stmt) (break s))
       ((continue? stmt) (continue s))
-      ((throw? stmt) (throw (cadr stmt) s))
+      ((throw? stmt) (throw (operand1 stmt) s))
       (else (error stmt "unknown statement")))))
 
 ;Begins a block of statements and returns the state following the block
@@ -120,18 +126,26 @@
     (letrec ((loop (lambda (stmts s)
                      (cond
                        ((null? stmts) (stack-pop s))
-                       (else (loop (cdr stmts) (M_state (car stmts) s return (lambda (v) (break (stack-pop v))) continue throw)))))))
+                       (else (loop (cdr stmts)
+                                   (M_state (car stmts) s return
+                                            (lambda (v) (break (stack-pop v)))
+                                            continue throw)))))))
       (loop stmts (stack-push (empty-state) s)))))
 
 (define M_try
   (lambda (stmts s return break continue)
     (call/cc
      (lambda (throw)
-       (M_state (car stmts) s return break continue (lambda (v1 v2) (throw (M_catch v1 (cdadr stmts) v2 return break continue))))))))
+       (M_state (car stmts) s return break continue
+                (lambda (v1 v2) (throw (M_catch v1 (cdadr stmts)
+                                                v2 return break continue))))))))
 
 (define M_catch
   (lambda (e stmts s return break continue)
-    (stack-pop (M_state (cadr stmts) (stack-assign (caar stmts) e (stack-declare (caar stmts) (stack-push s (empty-state))))))))
+    (stack-pop (M_state (cadr stmts)
+                        (stack-assign (caar stmts) e
+                                      (stack-declare (caar stmts)
+                                                     (stack-push s (empty-state))))))))
 
 (define M_try_with_finally
   (lambda (stmts s return break continue)
@@ -139,8 +153,8 @@
      (lambda (throw)
        (display stmts)
        (M_state (cadar (cddr stmts))
-                  (M_state (car stmts) s return break continue
-                           (lambda (v1 v2) (throw (M_state (cadar (cddr stmts))
+                (M_state (car stmts) s return break continue
+                         (lambda (v1 v2) (throw (M_state (cadar (cddr stmts))
                                                          (M_catch v1 (cdadr stmts) v2 return break continue) return break continue)))) return break continue)))))
 
 
@@ -206,89 +220,89 @@
 (define declare?
   (lambda (stmt)
     (if (eq? (length stmt) 2)
-        (eq? 'var (car stmt))
+        (eq? 'var (operator stmt))
         #f)))
 
 ; Returns true if given a statement that declares a variable and assigns a value
 (define declare_with_assign?
   (lambda (stmt)
     (if (eq? (length stmt) 3)
-        (eq? 'var (car stmt))
+        (eq? 'var (operator stmt))
         #f)))
 
 ; Returns true if given a statement that assigns a value to a declared variable
 (define assign?
   (lambda (stmt)
     (if (eq? (length stmt) 3)
-        (eq? '= (car stmt))
+        (eq? '= (operator stmt))
         #f)))
 
 ; Returns true if given a return statement
 (define return?
   (lambda (stmt)
     (if (eq? (length stmt) 2)
-        (eq? 'return (car stmt))
+        (eq? 'return (operator stmt))
         #f)))
 
 ; Returns true if given a begin statement
 (define begin?
   (lambda (stmt)
-    (eq? 'begin (car stmt))))
+    (eq? 'begin (operator stmt))))
 
 ; Returns true if given a break statement
 (define break?
   (lambda (stmt)
     (if (eq? (length stmt) 1)
-        (eq? 'break (car stmt))
+        (eq? 'break (operator stmt))
         #f)))
 
 ; Returns true if given a continue statement
 (define continue?
   (lambda (stmt)
     (if (eq? (length stmt) 1)
-        (eq? 'continue (car stmt))
+        (eq? 'continue (operator stmt))
         #f)))
 
 ;Returns true if given a try statement with no finally
 (define try?
   (lambda (stmt)
     (if (eq? (length stmt) 3)
-        (eq? 'try (car stmt))
+        (eq? 'try (operator stmt))
         #f)))
 
 ;Returns true if given a try statement with a finally
 (define try_with_finally?
   (lambda (stmt)
     (if (eq? (length stmt) 4)
-        (eq? 'try (car stmt))
+        (eq? 'try (operator stmt))
         #f)))
 
 ;Returns true if given a throw statement
 (define throw?
   (lambda (stmt)
     (if (eq? (length stmt) 2)
-        (eq? 'throw (car stmt))
+        (eq? 'throw (operator stmt))
         #f)))
 
 ; Returns true if given an if statement that is NOT followed by an else
 (define if?
   (lambda (stmt)
     (if (eq? (length stmt) 3)
-        (eq? 'if (car stmt))
+        (eq? 'if (operator stmt))
         #f)))
 
 ; Returns true if given an if statement that is followed by an else
 (define if_with_else?
   (lambda (stmt)
     (if (eq? (length stmt) 4)
-        (eq? 'if (car stmt))
+        (eq? 'if (operator stmt))
         #f)))
 
 ; Returns true if a statement begins a while loop
 (define while?
   (lambda (stmt)
     (if (eq? (length stmt) 3)
-        (eq? 'while (car stmt))
+        (eq? 'while (operator stmt))
         #f)))
 
 ; -----------
