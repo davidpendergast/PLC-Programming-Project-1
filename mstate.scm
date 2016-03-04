@@ -96,7 +96,7 @@
                       (M_state (car parsetree) s return
                                (lambda (v) (error "break not in a loop"))
                                (lambda (v) (error "continue not in a loop"))
-                               (lambda (v) (error "throw not inside try")))))))))
+                               (lambda (v1 v2) (error "throw not inside try")))))))))
 
 ; Returns the state which results from executing the given statement OR
 ; Returns a value if the statement simplifies to a value
@@ -126,36 +126,28 @@
     (letrec ((loop (lambda (stmts s)
                      (cond
                        ((null? stmts) (stack-pop s))
-                       (else (loop (cdr stmts)
-                                   (M_state (car stmts) s return
-                                            (lambda (v) (break (stack-pop v)))
-                                            continue throw)))))))
+                       (else (loop (cdr stmts) (M_state (car stmts) s return (lambda (v) (break (stack-pop v))) continue (lambda(v1 v2) (throw v1 (stack-pop v2))))))))))
       (loop stmts (stack-push (empty-state) s)))))
 
 (define M_try
   (lambda (stmts s return break continue throw)
     (call/cc
-     (lambda (throw)
-       (M_state (car stmts) s return break continue
-                (lambda (v1 v2) (throw (M_catch v1 (cdadr stmts)
-                                                v2 return break continue))))))))
+     (lambda (throw2)
+       (M_begin (car stmts) s return break continue (lambda (v1 v2) (throw2 (M_catch v1 (cdadr stmts) v2 return break continue throw))))))))
 
 (define M_catch
-  (lambda (e stmts s return break continue)
-    (stack-pop (M_state (cadr stmts)
-                        (stack-assign (caar stmts) e
-                                      (stack-declare (caar stmts)
-                                                     (stack-push s (empty-state))))))))
+  (lambda (e stmts s return break continue throw)
+    (stack-pop (M_begin (cadr stmts) (stack-assign (caar stmts) e (stack-declare (caar stmts) (stack-push (empty-state) s))) return break continue throw))))
 
 (define M_try_with_finally
   (lambda (stmts s return break continue throw)
     (call/cc
-     (lambda (throw)
+     (lambda (throw2)
        (display stmts)
-       (M_state (cadar (cddr stmts))
-                (M_state (car stmts) s return break continue
-                         (lambda (v1 v2) (throw (M_state (cadar (cddr stmts))
-                                                         (M_catch v1 (cdadr stmts) v2 return break continue) return break continue)))) return break continue)))))
+       (M_begin (cadar (cddr stmts))
+                (M_begin (car stmts) s return break continue
+                         (lambda (v1 v2) (throw2 (M_begin (cadar (cddr stmts))
+                                                         (M_catch v1 (cdadr stmts) v2 return break continue throw) return break continue throw)))) return break continue throw)))))
 
 
 
@@ -266,8 +258,8 @@
 ;Returns true if given a try statement with no finally
 (define try?
   (lambda (stmt)
-    (if (eq? (length stmt) 3)
-        (eq? 'try (operator stmt))
+    (if (eq? 'try (operator stmt))
+        (eq? (length (cadddr stmt)) 0)
         #f)))
 
 ;Returns true if given a try statement with a finally
@@ -373,9 +365,9 @@
 ;(display "P2 test 14: ") (equal? (execfile "p2_tests/test14.txt") 12)
 (display "P2 test 15: ") (equal? (execfile "p2_tests/test15.txt") 125)
 (display "P2 test 16: ") (equal? (execfile "p2_tests/test16.txt") 110)
-(display "P2 test 17: ") (equal? (execfile "p2_tests/test15.txt") 2000400)
+(display "P2 test 17: ") (equal? (execfile "p2_tests/test17.txt") 2000400)
 (display "P2 test 18: ") (equal? (execfile "p2_tests/test18.txt") 101)
 ; When enabled, test 19 should produce a "1" error (throw statement)
-;(display "P2 test 19: ") (execfile "p2_tests/test19.txt")
+(display "P2 test 19: ") (execfile "p2_tests/test19.txt")
 ; Test 20 is expected to fail. The feature it tests is not implemented.
 ;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
