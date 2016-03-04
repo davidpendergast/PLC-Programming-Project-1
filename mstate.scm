@@ -88,39 +88,35 @@
   (lambda (parsetree s)
     (call/cc
      (lambda (return)
-       (cond
-         ((null? parsetree) (error "parse tree reached no return statement"))
-         (else (interpret (cdr parsetree) (evaluate_stmt (car parsetree) s return))))))))
-
-(define evaluate_stmt
-  (lambda (stmt s return)
-    (if (return? stmt)
-        (M_return (cadr stmt) s return)
-        (M_state stmt s return))))
+       (if (null? parsetree)
+           (error "parse tree reached no return statement")
+           (interpret (cdr parsetree) (M_state (car parsetree) s return (lambda (v) (error "not in a block")))))))))
 
 ; Returns the state which results from executing the given statement OR
 ; Returns a value if the statement simplifies to a value
 (define M_state
-  (lambda (stmt s return)
+  (lambda (stmt s return break)
     (cond
       ((declare? stmt) (M_declare (cadr stmt) s))
       ((declare_with_assign? stmt) (M_declare_with_assign (cadr stmt)
                                                           (caddr stmt) s))
       ((assign? stmt) (M_assign (cadr stmt) (caddr stmt) s))
-      ((if? stmt) (M_if (cadr stmt) (caddr stmt) s return))
+      ((if? stmt) (M_if (cadr stmt) (caddr stmt) s return break))
       ((if_with_else? stmt) (M_if_else (cadr stmt) (caddr stmt)
-                                       (cadddr stmt) s return))
+                                       (cadddr stmt) s return break))
       ((while? stmt) (M_while (cadr stmt) (caddr stmt) s return))
-      ((begin? stmt) (M_begin (cdr stmt) s return))
+      ((return? stmt) (M_return (cadr stmt) s return break))
+      ((begin? stmt) (M_begin (cdr stmt) s return break))
+      ((break? stmt) (break s))
       (else (error stmt "unknown statement")))))
 
 ;Begins a block of statements and returns the state following the block
 (define M_begin
-  (lambda (stmts s return)
+  (lambda (stmts s return break)
     (letrec ((loop (lambda (stmts s)
                      (cond
                        ((null? stmts) (stack-pop s))
-                       (else (loop (cdr stmts) (evaluate_stmt (car stmts) s return)))))))
+                       (else (loop (cdr stmts) (M_state (car stmts) s return (lambda (v) (break (stack-pop v))))))))))
       (loop stmts (stack-push (empty-state) s)))))
 
 ; Declares a variable
@@ -146,7 +142,7 @@
 
 ; Returns a numerical value, not a state
 (define M_return
-  (lambda (expr s return)
+  (lambda (expr s return break)
     (if (condition? expr s)
         (if (M_boolean expr s)
             (return 'true)
@@ -155,24 +151,28 @@
 
 ; Executes an if-else pair of statements according to the if condition
 (define M_if_else
-  (lambda (condition then-stmt else-stmt s return)
+  (lambda (condition then-stmt else-stmt s return break)
     (if (M_boolean condition s)
-        (evaluate_stmt then-stmt s return)
-        (evaluate_stmt else-stmt s return))))
+        (M_state then-stmt s return break)
+        (M_state else-stmt s return break))))
 
 ; Executes an if statement according to its condition
 (define M_if
-  (lambda (condition then-stmt s return)
+  (lambda (condition then-stmt s return break)
     (if (M_boolean condition s)
-        (evaluate_stmt then-stmt s return)
+        (M_state then-stmt s return break)
         s)))
 
 ; Executes a while loop according to its condition
 (define M_while
   (lambda (condition loop-body s return)
-    (if (M_boolean condition s)
-        (M_while condition  loop-body (evaluate_stmt loop-body s return) return)
-        s)))
+    (call/cc
+     (lambda (break)
+       (letrec ((loop (lambda (condition loop-body s return)
+                        (if (M_boolean condition s)
+                            (loop condition loop-body (M_state loop-body s return break) return)
+                            s))))
+         (loop condition loop-body s return))))))
 
 ; Returns true if given a statement that only declares a variable
 (define declare?
@@ -207,6 +207,13 @@
   (lambda (stmt)
     (eq? 'begin (car stmt))))
 
+; Returns true if given a break statement
+(define break?
+  (lambda (stmt)
+    (if (eq? (length stmt) 1)
+        (eq? 'break (car stmt))
+        #f)))
+
 
 ; Returns true if given an if statement that is NOT followed by an else
 (define if?
@@ -232,14 +239,14 @@
 ; -----------
 ; State tests
 ; -----------
-(M_state '(var x) (empty-state-stack) (lambda (v) v))
-(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v))
-(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v))
-(M_state '(= x 20) '(((x) (10))) (lambda (v) v))
-(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v))
-(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v))
-(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v))
-(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v))
+(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")))
+(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")))
+(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")))
+(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")))
+(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")))
+(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")))
+(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")))
+(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")))
 
 ; --------------
 ; Language tests
