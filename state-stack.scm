@@ -1,3 +1,9 @@
+; EECS 345 - Programming Project 2
+; 
+; David Pendergast
+; Joel Kalos
+; Kevin Nash
+
 (load "state.scm")
 
 ; Returns ((()()))

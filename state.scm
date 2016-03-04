@@ -74,4 +74,3 @@
 (define empty-state
   (lambda ()
     '(()())))
-    

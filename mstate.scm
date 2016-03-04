@@ -1,4 +1,4 @@
-; EECS 345 - Programming Project 1
+; EECS 345 - Programming Project 2
 ; 
 ; David Pendergast
 ; Joel Kalos
@@ -303,50 +303,57 @@
 (M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
 (M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
 
-; --------------
-; Language tests
-; --------------
-(display "P1 Test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
-(display "P1 Test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
-(display "P1 Test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
-(display "P1 Test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
-(display "P1 Test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
-(display "P1 Test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
-(display "P1 Test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
-(display "P1 Test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
-(display "P1 Test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
-(display "P1 Test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
-(display "P1 Test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
+; --------------------
+; Language tests (P1)
+; --------------------
+(display "P1 test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
+(display "P1 test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
+(display "P1 test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
+(display "P1 test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
+(display "P1 test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
+(display "P1 test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
+(display "P1 test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
+(display "P1 test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
+(display "P1 test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
+(display "P1 test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
+(display "P1 test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
 ; When enabled, tests 11-14 should produce specific errors
-;(display "Test 11: ") (execfile "p1_tests/test11.txt") ; variable not declared
-;(display "Test 12: ") (execfile "p1_tests/test12.txt") ; variable not declared
-;(display "Test 13: ") (execfile "p1_tests/test13.txt") ; variable not initialized
-;(display "Test 14: ") (execfile "p1_tests/test14.txt") ; variable already declared 
-(display "P1 Test 15: ") (equal? (execfile "p1_tests/test15.txt") 'true)
-(display "P1 Test 16: ") (equal? (execfile "p1_tests/test16.txt") 100)
-(display "P1 Test 17: ") (equal? (execfile "p1_tests/test17.txt") 'false)
-(display "P1 Test 18: ") (equal? (execfile "p1_tests/test18.txt") 'true)
-(display "P1 Test 19: ") (equal? (execfile "p1_tests/test19.txt") 128)
-(display "P1 Test 20: ") (equal? (execfile "p1_tests/test20.txt") 12)
+;(display "P1 test 11: ") (execfile "p1_tests/test11.txt") ; variable not declared
+;(display "P1 test 12: ") (execfile "p1_tests/test12.txt") ; variable not declared
+;(display "P1 test 13: ") (execfile "p1_tests/test13.txt") ; variable not initialized
+;(display "P1 test 14: ") (execfile "p1_tests/test14.txt") ; variable already declared 
+(display "P1 test 15: ") (equal? (execfile "p1_tests/test15.txt") 'true)
+(display "P1 test 16: ") (equal? (execfile "p1_tests/test16.txt") 100)
+(display "P1 test 17: ") (equal? (execfile "p1_tests/test17.txt") 'false)
+(display "P1 test 18: ") (equal? (execfile "p1_tests/test18.txt") 'true)
+(display "P1 test 19: ") (equal? (execfile "p1_tests/test19.txt") 128)
+(display "P1 test 20: ") (equal? (execfile "p1_tests/test20.txt") 12)
 ; Tests 21-28 are expected to fail. The feature they test is not implemented.
-;(display "Test 21: ") (equal? (execfile "test21.txt") 30)
-;(display "Test 22: ") (equal? (execfile "test22.txt") 11)
-;(display "Test 23: ") (equal? (execfile "test23.txt") 1106)
-;(display "Test 24: ") (equal? (execfile "test24.txt") 12)
-;(display "Test 25: ") (equal? (execfile "test25.txt") 16)
-;(display "Test 26: ") (equal? (execfile "test26.txt") 72)
-;(display "Test 27: ") (equal? (execfile "test27.txt") 21)
-;(display "Test 28: ") (equal? (execfile "test28.txt") 164)
+;(display "P1 test 21: ") (equal? (execfile "p1_tests/test21.txt") 30)
+;(display "P1 test 22: ") (equal? (execfile "p1_tests/test22.txt") 11)
+;(display "P1 test 23: ") (equal? (execfile "p1_tests/test23.txt") 1106)
+;(display "P1 test 24: ") (equal? (execfile "p1_tests/test24.txt") 12)
+;(display "P1 test 25: ") (equal? (execfile "p1_tests/test25.txt") 16)
+;(display "P1 test 26: ") (equal? (execfile "p1_tests/test26.txt") 72)
+;(display "P1 test 27: ") (equal? (execfile "p1_tests/test27.txt") 21)
+;(display "P1 test 28: ") (equal? (execfile "p1_tests/test28.txt") 164)
 
-(display "P2 Test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
-(display "P2 Test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
-(display "P2 Test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
-(display "P2 Test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
-;(display "P2 Test 5: ") (equal? (execfile "p2_tests/test5.txt") )
-(display "P2 Test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
-(display "P2 Test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
-(display "P2 Test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
-(display "P2 Test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
-(display "P2 Test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
-(display "P2 Test 15: ") (equal? (execfile "p2_tests/test15.txt") 125)
-
+; --------------------
+; Language tests (P2)
+; --------------------
+(display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
+(display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
+(display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
+(display "P2 test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
+; When enabled, test 5 should produce a "variable already declared" error
+;(display "P2 test 5: ") (execfile "p2_tests/test5.txt")
+(display "P2 test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
+(display "P2 test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
+(display "P2 test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
+(display "P2 test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
+(display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
+; When enabled, tests 11-12 should produce a "variable already declared" error
+;(display "P2 test 11: ") (execfile "p2_tests/test11.txt")
+;(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
+;(display "P2 test 13: ") (execfile "p2_tests/test13.txt")
+(display "P2 test 15: ") (equal? (execfile "p2_tests/test15.txt") 125)
