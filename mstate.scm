@@ -90,25 +90,28 @@
      (lambda (return)
        (if (null? parsetree)
            (error "parse tree reached no return statement")
-           (interpret (cdr parsetree) (M_state (car parsetree) s return (lambda (v) (error "break not in a loop")) (lambda (v) (error "continue not in a loop")))))))))
+           (interpret (cdr parsetree) (M_state (car parsetree) s return (lambda (v) (error "break not in a loop")) (lambda (v) (error "continue not in a loop")) (lambda (v) (error "throw not inside try")))))))))
 
 ; Returns the state which results from executing the given statement OR
 ; Returns a value if the statement simplifies to a value
 (define M_state
-  (lambda (stmt s return break continue)
+  (lambda (stmt s return break continue throw)
     (cond
       ((declare? stmt) (M_declare (cadr stmt) s))
       ((declare_with_assign? stmt) (M_declare_with_assign (cadr stmt)
                                                           (caddr stmt) s))
       ((assign? stmt) (M_assign (cadr stmt) (caddr stmt) s))
-      ((if? stmt) (M_if (cadr stmt) (caddr stmt) s return break continue))
+      ((if? stmt) (M_if (cadr stmt) (caddr stmt) s return break continue throw))
       ((if_with_else? stmt) (M_if_else (cadr stmt) (caddr stmt)
-                                       (cadddr stmt) s return break continue))
-      ((while? stmt) (M_while (cadr stmt) (caddr stmt) s return))
+                                       (cadddr stmt) s return break continue throw))
+      ((while? stmt) (M_while (cadr stmt) (caddr stmt) s return throw))
       ((return? stmt) (M_return (cadr stmt) s return))
-      ((begin? stmt) (M_begin (cdr stmt) s return break continue))
+      ((begin? stmt) (M_begin (cdr stmt) s return break continue throw))
+      ((try? stmt) (M_try (cdr stmt) s return break continue))
+      ((try_with_finally? stmt) (M_try_with_finally (cdr stmt) s return break continue))
       ((break? stmt) (break s))
       ((continue? stmt) (continue s))
+      ((throw? stmt) (throw (cadr stmt) s))
       (else (error stmt "unknown statement")))))
 
 ;Begins a block of statements and returns the state following the block
@@ -119,6 +122,27 @@
                        ((null? stmts) (stack-pop s))
                        (else (loop (cdr stmts) (M_state (car stmts) s return (lambda (v) (break (stack-pop v))) continue)))))))
       (loop stmts (stack-push (empty-state) s)))))
+
+(define M_try
+  (lambda (stmts s return break continue)
+    (call/cc
+     (lambda (throw)
+       (M_state (car stmts) s return break continue (lambda (v1 v2) (throw (M_catch v1 (cdadr stmts) v2 return break continue))))))))
+
+(define M_catch
+  (lambda (e stmts s return break continue)
+    (stack-pop (M_state (cadr stmts) (stack-assign (caar stmts) e (stack-declare (caar stmts) (stack-push s (empty-state))))))))
+
+(define M_try_with_finally
+  (lambda (stmts s return break continue)
+    (call/cc
+     (lambda (throw)
+       (M_state (cadar (cdddr stmts))
+                  (M_state (car stmts) s return break continue
+                           (lambda (v1 v2) (throw (M_state (cadar (cdddr stmts))
+                                                         (M_catch v1 (cdadr stmts) v2 return break continue) return break continue)))) return break continue)))))
+
+
 
 ; Declares a variable
 (define M_declare
@@ -152,30 +176,30 @@
 
 ; Executes an if-else pair of statements according to the if condition
 (define M_if_else
-  (lambda (condition then-stmt else-stmt s return break continue)
+  (lambda (condition then-stmt else-stmt s return break continue throw)
     (if (M_boolean condition s)
-        (M_state then-stmt s return break continue)
-        (M_state else-stmt s return break continue))))
+        (M_state then-stmt s return break continue throw)
+        (M_state else-stmt s return break continue throw))))
 
 ; Executes an if statement according to its condition
 (define M_if
-  (lambda (condition then-stmt s return break continue)
+  (lambda (condition then-stmt s return break continue throw)
     (if (M_boolean condition s)
-        (M_state then-stmt s return break continue)
+        (M_state then-stmt s return break continue throw)
         s)))
 
 ; Executes a while loop according to its condition
 (define M_while
-  (lambda (condition loop-body s return)
+  (lambda (condition loop-body s return throw)
     (call/cc
      (lambda (break)
        (call/cc
         (lambda (continue)
-          (letrec ((loop (lambda (condition loop-body s return)
+          (letrec ((loop (lambda (loop-body s)
                            (if (M_boolean condition s)
-                               (loop condition loop-body (M_state loop-body s return break (lambda (v) (continue (loop condition loop-body v return)))) return)
+                               (loop loop-body (M_state loop-body s return break (lambda (v) (continue (loop loop-body v))) throw))
                                s))))
-            (loop condition loop-body s return))))))))
+            (loop loop-body s))))))))
 
 ; Returns true if given a statement that only declares a variable
 (define declare?
@@ -224,6 +248,27 @@
         (eq? 'continue (car stmt))
         #f)))
 
+;Returns true if given a try statement with no finally
+(define try?
+  (lambda (stmt)
+    (if (eq? (length stmt) 3)
+        (eq? 'try (car stmt))
+        #f)))
+
+;Returns true if given a try statement with a finally
+(define try_with_finally?
+  (lambda (stmt)
+    (if (eq? (length stmt) 4)
+        (eq? 'try (car stmt))
+        #f)))
+
+;Returns true if given a throw statement
+(define throw?
+  (lambda (stmt)
+    (if (eq? (length stmt) 2)
+        (eq? 'throw (car stmt))
+        (#f))))
+
 ; Returns true if given an if statement that is NOT followed by an else
 (define if?
   (lambda (stmt)
@@ -248,14 +293,14 @@
 ; -----------
 ; State tests
 ; -----------
-(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
 
 ; --------------
 ; Language tests
