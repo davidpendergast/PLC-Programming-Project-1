@@ -116,11 +116,11 @@
 
 ;Begins a block of statements and returns the state following the block
 (define M_begin
-  (lambda (stmts s return break continue)
+  (lambda (stmts s return break continue throw)
     (letrec ((loop (lambda (stmts s)
                      (cond
                        ((null? stmts) (stack-pop s))
-                       (else (loop (cdr stmts) (M_state (car stmts) s return (lambda (v) (break (stack-pop v))) continue)))))))
+                       (else (loop (cdr stmts) (M_state (car stmts) s return (lambda (v) (break (stack-pop v))) continue throw)))))))
       (loop stmts (stack-push (empty-state) s)))))
 
 (define M_try
@@ -137,9 +137,10 @@
   (lambda (stmts s return break continue)
     (call/cc
      (lambda (throw)
-       (M_state (cadar (cdddr stmts))
+       (display stmts)
+       (M_state (cadar (cddr stmts))
                   (M_state (car stmts) s return break continue
-                           (lambda (v1 v2) (throw (M_state (cadar (cdddr stmts))
+                           (lambda (v1 v2) (throw (M_state (cadar (cddr stmts))
                                                          (M_catch v1 (cdadr stmts) v2 return break continue) return break continue)))) return break continue)))))
 
 
@@ -267,7 +268,7 @@
   (lambda (stmt)
     (if (eq? (length stmt) 2)
         (eq? 'throw (car stmt))
-        (#f))))
+        #f)))
 
 ; Returns true if given an if statement that is NOT followed by an else
 (define if?
@@ -305,28 +306,28 @@
 ; --------------
 ; Language tests
 ; --------------
-(display "Test 0: ") (equal? (execfile "test0.txt") 100)
-(display "Test 1: ") (equal? (execfile "test1.txt") 150)
-(display "Test 2: ") (equal? (execfile "test2.txt") -4)
-(display "Test 3: ") (equal? (execfile "test3.txt") 10)
-(display "Test 4: ") (equal? (execfile "test4.txt") 16)
-(display "Test 5: ") (equal? (execfile "test5.txt") 220)
-(display "Test 6: ") (equal? (execfile "test6.txt") 5)
-(display "Test 7: ") (equal? (execfile "test7.txt") 6)
-(display "Test 8: ") (equal? (execfile "test8.txt") 10)
-(display "Test 9: ") (equal? (execfile "test9.txt") 5)
-(display "Test 10: ") (equal? (execfile "test10.txt") -39)
+(display "P1 Test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
+(display "P1 Test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
+(display "P1 Test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
+(display "P1 Test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
+(display "P1 Test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
+(display "P1 Test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
+(display "P1 Test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
+(display "P1 Test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
+(display "P1 Test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
+(display "P1 Test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
+(display "P1 Test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
 ; When enabled, tests 11-14 should produce specific errors
-;(display "Test 11: ") (execfile "test11.txt") ; variable not declared
-;(display "Test 12: ") (execfile "test12.txt") ; variable not declared
-;(display "Test 13: ") (execfile "test13.txt") ; variable not initialized
-;(display "Test 14: ") (execfile "test14.txt") ; variable already declared 
-(display "Test 15: ") (equal? (execfile "test15.txt") 'true)
-(display "Test 16: ") (equal? (execfile "test16.txt") 100)
-(display "Test 17: ") (equal? (execfile "test17.txt") 'false)
-(display "Test 18: ") (equal? (execfile "test18.txt") 'true)
-(display "Test 19: ") (equal? (execfile "test19.txt") 128)
-(display "Test 20: ") (equal? (execfile "test20.txt") 12)
+;(display "Test 11: ") (execfile "p1_tests/test11.txt") ; variable not declared
+;(display "Test 12: ") (execfile "p1_tests/test12.txt") ; variable not declared
+;(display "Test 13: ") (execfile "p1_tests/test13.txt") ; variable not initialized
+;(display "Test 14: ") (execfile "p1_tests/test14.txt") ; variable already declared 
+(display "P1 Test 15: ") (equal? (execfile "p1_tests/test15.txt") 'true)
+(display "P1 Test 16: ") (equal? (execfile "p1_tests/test16.txt") 100)
+(display "P1 Test 17: ") (equal? (execfile "p1_tests/test17.txt") 'false)
+(display "P1 Test 18: ") (equal? (execfile "p1_tests/test18.txt") 'true)
+(display "P1 Test 19: ") (equal? (execfile "p1_tests/test19.txt") 128)
+(display "P1 Test 20: ") (equal? (execfile "p1_tests/test20.txt") 12)
 ; Tests 21-28 are expected to fail. The feature they test is not implemented.
 ;(display "Test 21: ") (equal? (execfile "test21.txt") 30)
 ;(display "Test 22: ") (equal? (execfile "test22.txt") 11)
@@ -336,3 +337,16 @@
 ;(display "Test 26: ") (equal? (execfile "test26.txt") 72)
 ;(display "Test 27: ") (equal? (execfile "test27.txt") 21)
 ;(display "Test 28: ") (equal? (execfile "test28.txt") 164)
+
+(display "P2 Test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
+(display "P2 Test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
+(display "P2 Test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
+(display "P2 Test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
+;(display "P2 Test 5: ") (equal? (execfile "p2_tests/test5.txt") )
+(display "P2 Test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
+(display "P2 Test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
+(display "P2 Test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
+(display "P2 Test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
+(display "P2 Test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
+(display "P2 Test 15: ") (equal? (execfile "p2_tests/test15.txt") 125)
+
