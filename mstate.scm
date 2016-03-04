@@ -113,8 +113,8 @@
       ((while? stmt) (M_while (operand1 stmt) (operand2 stmt) s return throw))
       ((return? stmt) (M_return (operand1 stmt) s return))
       ((begin? stmt) (M_begin (block stmt) s return break continue throw))
-      ((try? stmt) (M_try (block stmt) s return break continue))
-      ((try_with_finally? stmt) (M_try_with_finally (block stmt) s return break continue))
+      ((try? stmt) (M_try (block stmt) s return break continue throw))
+      ((try_with_finally? stmt) (M_try_with_finally (block stmt) s return break continue throw))
       ((break? stmt) (break s))
       ((continue? stmt) (continue s))
       ((throw? stmt) (throw (operand1 stmt) s))
@@ -133,7 +133,7 @@
       (loop stmts (stack-push (empty-state) s)))))
 
 (define M_try
-  (lambda (stmts s return break continue)
+  (lambda (stmts s return break continue throw)
     (call/cc
      (lambda (throw)
        (M_state (car stmts) s return break continue
@@ -148,7 +148,7 @@
                                                      (stack-push s (empty-state))))))))
 
 (define M_try_with_finally
-  (lambda (stmts s return break continue)
+  (lambda (stmts s return break continue throw)
     (call/cc
      (lambda (throw)
        (display stmts)
@@ -308,29 +308,29 @@
 ; -----------
 ; State tests
 ; -----------
-(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
 
 ; --------------------
 ; Language tests (P1)
 ; --------------------
-(display "P1 test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
-(display "P1 test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
-(display "P1 test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
-(display "P1 test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
-(display "P1 test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
-(display "P1 test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
-(display "P1 test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
-(display "P1 test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
-(display "P1 test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
-(display "P1 test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
-(display "P1 test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
+;(display "P1 test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
+;(display "P1 test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
+;(display "P1 test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
+;(display "P1 test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
+;(display "P1 test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
+;(display "P1 test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
+;(display "P1 test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
+;(display "P1 test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
+;(display "P1 test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
+;(display "P1 test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
+;(display "P1 test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
 ; When enabled, tests 11-14 should produce specific errors
 ;(display "P1 test 11: ") (execfile "p1_tests/test11.txt") ; variable not declared
 ;(display "P1 test 12: ") (execfile "p1_tests/test12.txt") ; variable not declared
@@ -355,19 +355,27 @@
 ; --------------------
 ; Language tests (P2)
 ; --------------------
-(display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
-(display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
-(display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
-(display "P2 test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
+;(display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
+;(display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
+;(display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
+;(display "P2 test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
 ; When enabled, test 5 should produce a "variable already declared" error
 ;(display "P2 test 5: ") (execfile "p2_tests/test5.txt")
-(display "P2 test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
-(display "P2 test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
-(display "P2 test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
-(display "P2 test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
-(display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
+;(display "P2 test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
+;(display "P2 test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
+;(display "P2 test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
+;(display "P2 test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
+;(display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
 ; When enabled, tests 11-12 should produce a "variable already declared" error
 ;(display "P2 test 11: ") (execfile "p2_tests/test11.txt")
 ;(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
 ;(display "P2 test 13: ") (execfile "p2_tests/test13.txt")
+;(display "P2 test 14: ") (equal? (execfile "p2_tests/test14.txt") 12)
 (display "P2 test 15: ") (equal? (execfile "p2_tests/test15.txt") 125)
+(display "P2 test 16: ") (equal? (execfile "p2_tests/test16.txt") 110)
+(display "P2 test 17: ") (equal? (execfile "p2_tests/test15.txt") 2000400)
+(display "P2 test 18: ") (equal? (execfile "p2_tests/test18.txt") 101)
+; When enabled, test 19 should produce a "1" error (throw statement)
+;(display "P2 test 19: ") (execfile "p2_tests/test19.txt")
+; Test 20 is expected to fail. The feature it tests is not implemented.
+;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
