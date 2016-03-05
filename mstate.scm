@@ -7,14 +7,66 @@
 (load "simpleParser.scm")
 (load "state-stack.scm")
 
-; Defines the elements of an expression in prefix notation
-(define block cdr)
-(define operator car)
-(define operand1 cadr)
-(define operand2 caddr)
-(define operand3 cadddr)
+; -----------
+;   Aliases
+; -----------
 
-; Returns the numerical value of given expression
+; Parts of an expression in prefix notation, e.g. (+ 1 2)
+(define operator car)   ; +
+(define operand1 cadr)  ; 1
+(define operand2 caddr) ; 2
+; A variable
+(define var cadr)
+; An expression that can be evaluated
+(define value caddr)
+; Code blocks following begin or try
+(define blocks cdr)
+; Current (first) code block in blocks
+(define current-block car)
+; Condition before a block, such as a while loop or if statement
+(define condition cadr)
+; Body of a loop or the code block following an if statement
+(define body caddr)
+; Code block following an else statement
+(define else-stmt cadddr)
+; Code block following a try
+(define try-block car)
+; Exception and block following a catch
+(define catch cdadr)
+; Block following a catch
+(define catch-block cadr)
+; Exception of a catch statement
+(define exception caar)
+; Block following a finally
+(define (finally-block x) (cadar (cddr x)))
+
+; --------------------
+;   Runner functions
+; --------------------
+
+; Given the filename of a valid program, returns the return value of the program
+(define execfile
+  (lambda (filename)
+    (interpret (parser filename) (empty-state-stack))))
+
+; Given a parse tree, returns the return value of the program
+(define interpret
+  (lambda (parsetree s)
+    (call/cc
+     (lambda (return)
+       (if (null? parsetree)
+           (error "parse tree reached no return statement")
+           (interpret (cdr parsetree)
+                      (M_state (car parsetree) s return
+                               (lambda (v) (error "break not in a loop"))
+                               (lambda (v) (error "continue not in a loop"))
+                               (lambda (v1 v2) (error "throw not inside try")))))))))
+
+; ---------------
+;   M functions
+; ---------------
+
+; Given a arithmetic expression, returns its numerical value
 (define M_value
   (lambda (expr s)
     (cond
@@ -37,7 +89,7 @@
                                            (M_value (operand2 expr) s)))
       (else (error "unknown expression" expr)))))
 
-; Returns the boolean value of given expression
+; Given a logical expression, returns its boolean value
 (define M_boolean
   (lambda (expr s)
     (cond
@@ -65,7 +117,136 @@
       ((eq? (operator expr) '!) (not (M_boolean (operand1 expr) s)))
       (else (error "unknown expression" expr)))))
 
-; Returns true if the expression is a condition or truth value
+; Given a statement,
+; returns the state which results from executing the given statement
+(define M_state
+  (lambda (stmt s return break continue throw)
+    (cond
+      ((declare? stmt) (M_declare (var stmt) s))
+      ((declare_with_assign? stmt) (M_declare_with_assign (var stmt)
+                                                          (value stmt) s))
+      ((assign? stmt) (M_assign (var stmt) (value stmt) s))
+      ((if? stmt) (M_if (condition stmt) (body stmt) s return break continue throw))
+      ((if_with_else? stmt) (M_if_else (condition stmt) (body stmt)
+                                       (else-stmt stmt) s return break continue throw))
+      ((while? stmt) (M_while (condition stmt) (body stmt) s return throw))
+      ((return? stmt) (M_return (var stmt) s return))
+      ((begin? stmt) (M_begin (blocks stmt) s return break continue throw))
+      ((try? stmt) (M_try (blocks stmt) s return break continue throw))
+      ((try_with_finally? stmt) (M_try_with_finally (blocks stmt) s return break continue throw))
+      ((break? stmt) (break s))
+      ((continue? stmt) (continue s))
+      ((throw? stmt) (throw (var stmt) s))
+      (else (error stmt "unknown statement")))))
+
+; Given a code block,
+; returns the state following execution of the code block
+(define M_begin
+  (lambda (stmts s return break continue throw)
+    (letrec ((loop (lambda (stmts s)
+                     (cond
+                       ((null? stmts) (stack-pop s))
+                       (else (loop (blocks stmts) (M_state (current-block stmts) s return (lambda (v) (break (stack-pop v))) continue (lambda (v1 v2) (throw v1 (stack-pop v2))))))))))
+      (loop stmts (stack-push (empty-state) s)))))
+
+; Given a try statement,
+; returns the state following execution of the statement
+(define M_try
+  (lambda (stmts s return break continue throw)
+    (call/cc
+     (lambda (throw2)
+       (M_begin (try-block stmts) s return break continue (lambda (v1 v2) (throw2 (M_catch v1 (catch stmts) v2 return break continue throw))))))))
+
+; Given an exception value and a catch code block,
+; returns the state following execution of the statement
+(define M_catch
+  (lambda (e stmts s return break continue throw)
+    (stack-pop (M_begin (catch-block stmts) (stack-assign (exception stmts) e (stack-declare (exception stmts) (stack-push (empty-state) s))) return break continue throw))))
+
+; Given a try statement including a finally statement,
+; returns the state following execution of the statements
+(define M_try_with_finally
+  (lambda (stmts s return break continue throw)
+    (call/cc
+     (lambda (throw2)
+       (M_begin (finally-block stmts)
+                (M_begin (try-block stmts) s return break continue
+                         (lambda (v1 v2) (throw2 (M_begin (finally-block stmts)
+                                                         (M_catch v1 (catch stmts) v2 return break continue throw) return break continue throw)))) return break continue throw)))))
+
+; Given a variable,
+; returns the state after adding the variable to the state
+(define M_declare
+  (lambda (variable s)
+    (stack-declare variable s)))
+
+; Given a variable and an expression,
+; returns the state after adding the initialized variable to the state
+(define M_declare_with_assign
+  (lambda (var expr s)
+    (if (condition? expr s)
+        (stack-assign var (M_boolean expr (stack-declare var s))
+                      (stack-declare var s))
+        (stack-assign var (M_value expr (stack-declare var s))
+                      (stack-declare var s)))))
+
+; Given a variable and an expression,
+; returns the state after changing the value of the variable
+(define M_assign
+  (lambda (var expr s)
+    (if (condition? expr s)
+        (stack-assign var (M_boolean expr s) s)
+        (stack-assign var (M_value expr s) s))))
+
+; Given a statement that can be evaluated,
+; returns the value of the statement
+(define M_return
+  (lambda (expr s return)
+    (if (condition? expr s)
+        (if (M_boolean expr s)
+            (return 'true)
+            (return 'false))
+        (return (M_value expr s)))))
+
+; Given a condition and two statements,
+; returns the state following execution of the first statement if the condition
+; is met or, otherwise, the state following execution of the second statement
+(define M_if_else
+  (lambda (condition then-stmt else-stmt s return break continue throw)
+    (if (M_boolean condition s)
+        (M_state then-stmt s return break continue throw)
+        (M_state else-stmt s return break continue throw))))
+
+; Given a condition and a statement,
+; returns the state following execution of the statement if the condition
+; is met or the original state if the condition is not met
+(define M_if
+  (lambda (condition then-stmt s return break continue throw)
+    (if (M_boolean condition s)
+        (M_state then-stmt s return break continue throw)
+        s)))
+
+; Given a condition and a code block
+; returns the state following all necessary loops of the code block
+(define M_while
+  (lambda (condition loop-body s return throw)
+    (call/cc
+     (lambda (break)
+       (call/cc
+        (lambda (continue)
+          (letrec ((loop (lambda (loop-body s)
+                           (if (M_boolean condition s)
+                               (loop loop-body (M_state loop-body s return break (lambda (v) (continue (loop loop-body v))) throw))
+                               s))))
+            (loop loop-body s))))))))
+
+
+; -------------------------------------------------
+;   Statement/expression identification functions  
+; -------------------------------------------------
+
+; Given a logical expression, returns true
+; Given an arithmetic expression, returns false
 (define condition?
   (lambda (expr s)
     (cond
@@ -79,133 +260,6 @@
                 (eq? (operator expr) '<=) (eq? (operator expr) '>=)
                 (eq? (operator expr) '&&) (eq? (operator expr) '||)
                 (eq? (operator expr) '!))))))
-
-; Given the filename of a valid program, returns the return value of the program
-(define execfile
-  (lambda (filename)
-    (interpret (parser filename) (empty-state-stack))))
-
-; Given a parse tree, returns the return value of the program
-(define interpret
-  (lambda (parsetree s)
-    (call/cc
-     (lambda (return)
-       (if (null? parsetree)
-           (error "parse tree reached no return statement")
-           (interpret (cdr parsetree)
-                      (M_state (car parsetree) s return
-                               (lambda (v) (error "break not in a loop"))
-                               (lambda (v) (error "continue not in a loop"))
-                               (lambda (v1 v2) (error "throw not inside try")))))))))
-
-; Returns the state which results from executing the given statement OR
-; Returns a value if the statement simplifies to a value
-(define M_state
-  (lambda (stmt s return break continue throw)
-    (cond
-      ((declare? stmt) (M_declare (operand1 stmt) s))
-      ((declare_with_assign? stmt) (M_declare_with_assign (operand1 stmt)
-                                                          (operand2 stmt) s))
-      ((assign? stmt) (M_assign (operand1 stmt) (operand2 stmt) s))
-      ((if? stmt) (M_if (operand1 stmt) (operand2 stmt) s return break continue throw))
-      ((if_with_else? stmt) (M_if_else (operand1 stmt) (operand2 stmt)
-                                       (operand3 stmt) s return break continue throw))
-      ((while? stmt) (M_while (operand1 stmt) (operand2 stmt) s return throw))
-      ((return? stmt) (M_return (operand1 stmt) s return))
-      ((begin? stmt) (M_begin (block stmt) s return break continue throw))
-      ((try? stmt) (M_try (block stmt) s return break continue throw))
-      ((try_with_finally? stmt) (M_try_with_finally (block stmt) s return break continue throw))
-      ((break? stmt) (break s))
-      ((continue? stmt) (continue s))
-      ((throw? stmt) (throw (operand1 stmt) s))
-      (else (error stmt "unknown statement")))))
-
-;Begins a block of statements and returns the state following the block
-(define M_begin
-  (lambda (stmts s return break continue throw)
-    (letrec ((loop (lambda (stmts s)
-                     (cond
-                       ((null? stmts) (stack-pop s))
-                       (else (loop (cdr stmts) (M_state (car stmts) s return (lambda (v) (break (stack-pop v))) continue (lambda(v1 v2) (throw v1 (stack-pop v2))))))))))
-      (loop stmts (stack-push (empty-state) s)))))
-
-(define M_try
-  (lambda (stmts s return break continue throw)
-    (call/cc
-     (lambda (throw2)
-       (M_begin (car stmts) s return break continue (lambda (v1 v2) (throw2 (M_catch v1 (cdadr stmts) v2 return break continue throw))))))))
-
-(define M_catch
-  (lambda (e stmts s return break continue throw)
-    (stack-pop (M_begin (cadr stmts) (stack-assign (caar stmts) e (stack-declare (caar stmts) (stack-push (empty-state) s))) return break continue throw))))
-
-(define M_try_with_finally
-  (lambda (stmts s return break continue throw)
-    (call/cc
-     (lambda (throw2)
-       (M_begin (cadar (cddr stmts))
-                (M_begin (car stmts) s return break continue
-                         (lambda (v1 v2) (throw2 (M_begin (cadar (cddr stmts))
-                                                         (M_catch v1 (cdadr stmts) v2 return break continue throw) return break continue throw)))) return break continue throw)))))
-
-
-
-; Declares a variable
-(define M_declare
-  (lambda (variable s)
-    (stack-declare variable s)))
-
-; Declares a variable and assigns it a numerical or boolean value
-(define M_declare_with_assign
-  (lambda (var expr s)
-    (if (condition? expr s)
-        (stack-assign var (M_boolean expr (stack-declare var s))
-                      (stack-declare var s))
-        (stack-assign var (M_value expr (stack-declare var s))
-                      (stack-declare var s)))))
-
-; Assigns a numerical or boolean value to a variable
-(define M_assign
-  (lambda (var expr s)
-    (if (condition? expr s)
-        (stack-assign var (M_boolean expr s) s)
-        (stack-assign var (M_value expr s) s))))
-
-; Returns a numerical value, not a state
-(define M_return
-  (lambda (expr s return)
-    (if (condition? expr s)
-        (if (M_boolean expr s)
-            (return 'true)
-            (return 'false))
-        (return (M_value expr s)))))
-
-; Executes an if-else pair of statements according to the if condition
-(define M_if_else
-  (lambda (condition then-stmt else-stmt s return break continue throw)
-    (if (M_boolean condition s)
-        (M_state then-stmt s return break continue throw)
-        (M_state else-stmt s return break continue throw))))
-
-; Executes an if statement according to its condition
-(define M_if
-  (lambda (condition then-stmt s return break continue throw)
-    (if (M_boolean condition s)
-        (M_state then-stmt s return break continue throw)
-        s)))
-
-; Executes a while loop according to its condition
-(define M_while
-  (lambda (condition loop-body s return throw)
-    (call/cc
-     (lambda (break)
-       (call/cc
-        (lambda (continue)
-          (letrec ((loop (lambda (loop-body s)
-                           (if (M_boolean condition s)
-                               (loop loop-body (M_state loop-body s return break (lambda (v) (continue (loop loop-body v))) throw))
-                               s))))
-            (loop loop-body s))))))))
 
 ; Returns true if given a statement that only declares a variable
 (define declare?
@@ -254,21 +308,21 @@
         (eq? 'continue (operator stmt))
         #f)))
 
-;Returns true if given a try statement with no finally
+; Returns true if given a try statement with no finally
 (define try?
   (lambda (stmt)
     (if (eq? 'try (operator stmt))
         (eq? (length (cadddr stmt)) 0)
         #f)))
 
-;Returns true if given a try statement with a finally
+; Returns true if given a try statement with a finally
 (define try_with_finally?
   (lambda (stmt)
     (if (eq? (length stmt) 4)
         (eq? 'try (operator stmt))
         #f)))
 
-;Returns true if given a throw statement
+; Returns true if given a throw statement
 (define throw?
   (lambda (stmt)
     (if (eq? (length stmt) 2)
@@ -299,29 +353,31 @@
 ; -----------
 ; State tests
 ; -----------
-;(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-;(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-;(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-;(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-;(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-;(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-;(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-;(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+
+(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
 
 ; --------------------
 ; Language tests (P1)
 ; --------------------
-;(display "P1 test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
-;(display "P1 test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
-;(display "P1 test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
-;(display "P1 test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
-;(display "P1 test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
-;(display "P1 test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
-;(display "P1 test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
-;(display "P1 test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
-;(display "P1 test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
-;(display "P1 test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
-;(display "P1 test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
+
+(display "P1 test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
+(display "P1 test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
+(display "P1 test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
+(display "P1 test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
+(display "P1 test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
+(display "P1 test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
+(display "P1 test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
+(display "P1 test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
+(display "P1 test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
+(display "P1 test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
+(display "P1 test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
 ; When enabled, tests 11-14 should produce specific errors
 ;(display "P1 test 11: ") (execfile "p1_tests/test11.txt") ; variable not declared
 ;(display "P1 test 12: ") (execfile "p1_tests/test12.txt") ; variable not declared
@@ -346,6 +402,8 @@
 ; --------------------
 ; Language tests (P2)
 ; --------------------
+
+(display "P2 test 0: ") (execfile "p2_tests/test0.txt")
 (display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
 (display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
 (display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
@@ -357,9 +415,9 @@
 (display "P2 test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
 (display "P2 test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
 (display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
-; When enabled, test 11 should throw a "variable not declared" error.
+; When enabled, tests 11-12 should throw a "variable not declared" error.
 ;(display "P2 test 11: ") (execfile "p2_tests/test11.txt")
-(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
+;(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
 ; When enabled, test 13 should produce a "break not in loop" error.
 ;(display "P2 test 13: ") (execfile "p2_tests/test13.txt")
 (display "P2 test 14: ") (equal? (execfile "p2_tests/test14.txt") 12)
@@ -368,6 +426,6 @@
 (display "P2 test 17: ") (equal? (execfile "p2_tests/test17.txt") 2000400)
 (display "P2 test 18: ") (equal? (execfile "p2_tests/test18.txt") 101)
 ; When enabled, test 19 should produce a "1" error (throw statement)
-;(display "P2 test 19: ") (execfile "p2_tests/test19.txt")
+(display "P2 test 19: ") (execfile "p2_tests/test19.txt")
 ; Test 20 is expected to fail. The feature it tests is not implemented.
 ;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
