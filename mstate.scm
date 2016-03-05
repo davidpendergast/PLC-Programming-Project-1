@@ -235,8 +235,9 @@
        (call/cc
         (lambda (continue)
           (letrec ((loop (lambda (loop-body s)
+                           ;(display s)(display "$$$")
                            (if (M_boolean condition s)
-                               (loop loop-body (M_state loop-body s return break (lambda (v) (continue (loop loop-body v))) throw))
+                               (loop loop-body (M_state loop-body s return break (lambda (v) (continue (loop loop-body (stack-pop v)))) throw))
                                s))))
             (loop loop-body s))))))))
 
@@ -403,7 +404,6 @@
 ; Language tests (P2)
 ; --------------------
 
-(display "P2 test 0: ") (execfile "p2_tests/test0.txt")
 (display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
 (display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
 (display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
@@ -417,7 +417,7 @@
 (display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
 ; When enabled, tests 11-12 should throw a "variable not declared" error
 ;(display "P2 test 11: ") (execfile "p2_tests/test11.txt")
-(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
+;(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
 ; When enabled, test 13 should produce a "break not in loop" error
 ;(display "P2 test 13: ") (execfile "p2_tests/test13.txt")
 (display "P2 test 14: ") (equal? (execfile "p2_tests/test14.txt") 12)
