@@ -5,7 +5,7 @@
 ; Kevin Nash
 
 (load "functionParser.scm")
-(load "simpleParser.scm")
+;(load "simpleParser.scm")
 (load "state-stack.scm")
 
 ; -----------
@@ -20,6 +20,8 @@
 (define var cadr)
 ; An expression that can be evaluated
 (define value caddr)
+
+(define function-body cdr)
 ; Code blocks following begin or try
 (define blocks cdr)
 ; Current (first) code block in blocks
@@ -41,6 +43,11 @@
 ; Block following a finally
 (define (finally-block x) (cadar (cddr x)))
 
+(define initial-break (lambda (v) (error "break not in a loop")))
+(define initial-throw (lambda (v1 v2) (error "throw not inside try")))
+(define initial-continue (lambda (v) (error "continue not in a loop")))
+(define initial-return (lambda (v) (error "return outside of function")))
+
 ; --------------------
 ;   Runner functions
 ; --------------------
@@ -48,7 +55,14 @@
 ; Given the filename of a valid program, returns the return value of the program
 (define execfile
   (lambda (filename)
-    (interpret (parser filename) (empty-state-stack))))
+    (interpret (function-body (stack-get 'main (outer-layer-interpret (parser filename) (empty-state-stack)))) (outer-layer-interpret (parser filename) (empty-state-stack)))))
+
+; Returns the state after collecting the global functions.
+(define outer-layer-interpret
+  (lambda (parsetree s)
+    (if (null? parsetree)
+        s
+        (outer-layer-interpret (cdr parsetree) (M_state (car parsetree) s initial-return initial-break initial-continue initial-throw)))))
 
 ; Given a parse tree, returns the return value of the program
 (define interpret
@@ -138,6 +152,7 @@
       ((break? stmt) (break s))
       ((continue? stmt) (continue s))
       ((throw? stmt) (throw (var stmt) s))
+      ((function-assign? stmt) (M_function-assign (cadr stmt) (caddr stmt) (cadddr stmt) s))
       (else (error stmt "unknown statement")))))
 
 ; Given a code block,
@@ -241,6 +256,15 @@
                                (loop loop-body (M_state loop-body s return break (lambda (v) (continue (loop loop-body (stack-pop v)))) throw))
                                s))))
             (loop loop-body s))))))))
+
+(define M_function-assign
+  (lambda (name args stmts s)
+    (stack-assign name (list args stmts) (stack-declare name s))))
+
+(define M_function-call-state
+  (lambda (name args s return break continue)
+  0))
+    
 
 
 ; -------------------------------------------------
@@ -352,45 +376,56 @@
         (eq? 'while (operator stmt))
         #f)))
 
+(define function-assign?
+  (lambda (stmt)
+    (if (eq? (length stmt) 4)
+        (eq? 'function (operator stmt))
+        #f
+    )))
+
+(define function-call?
+  (lambda (stmt)
+    (eq? (opperator stmt) 'funcall)))
+
 ; -----------
 ; State tests
 ; -----------
 
-(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
-(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(var x) (empty-state-stack) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(var x 10) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(var x true) '(((y z)(15 40))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(= x 20) '(((x) (10))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(= x 20) '(((y x z) (0 () 6))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(while (< i 10) (= i (+ i x))) '(((i x)(0 3))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(if (< x 2) (= x 2)) '(((x)(1))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
+;(M_state '(if (>= x 2) (= x 7) (= x (+ x 1))) '(((x)(0))) (lambda (v) v) (lambda () (error "not in a block")) (lambda () (error "not in a block")) (lambda () (error "not in a block")))
 
 ; --------------------
 ; Language tests (P1)
 ; --------------------
 
-(display "P1 test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
-(display "P1 test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
-(display "P1 test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
-(display "P1 test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
-(display "P1 test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
-(display "P1 test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
-(display "P1 test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
-(display "P1 test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
-(display "P1 test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
-(display "P1 test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
-(display "P1 test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
+;(display "P1 test 0: ") (equal? (execfile "p1_tests/test0.txt") 100)
+;(display "P1 test 1: ") (equal? (execfile "p1_tests/test1.txt") 150)
+;(display "P1 test 2: ") (equal? (execfile "p1_tests/test2.txt") -4)
+;(display "P1 test 3: ") (equal? (execfile "p1_tests/test3.txt") 10)
+;(display "P1 test 4: ") (equal? (execfile "p1_tests/test4.txt") 16)
+;(display "P1 test 5: ") (equal? (execfile "p1_tests/test5.txt") 220)
+;(display "P1 test 6: ") (equal? (execfile "p1_tests/test6.txt") 5)
+;(display "P1 test 7: ") (equal? (execfile "p1_tests/test7.txt") 6)
+;(display "P1 test 8: ") (equal? (execfile "p1_tests/test8.txt") 10)
+;(display "P1 test 9: ") (equal? (execfile "p1_tests/test9.txt") 5)
+;(display "P1 test 10: ") (equal? (execfile "p1_tests/test10.txt") -39)
 ; When enabled, tests 11-14 should produce specific errors
 ;(display "P1 test 11: ") (execfile "p1_tests/test11.txt") ; variable not declared
 ;(display "P1 test 12: ") (execfile "p1_tests/test12.txt") ; variable not declared
 ;(display "P1 test 13: ") (execfile "p1_tests/test13.txt") ; variable not initialized
 ;(display "P1 test 14: ") (execfile "p1_tests/test14.txt") ; variable already declared 
-(display "P1 test 15: ") (equal? (execfile "p1_tests/test15.txt") 'true)
-(display "P1 test 16: ") (equal? (execfile "p1_tests/test16.txt") 100)
-(display "P1 test 17: ") (equal? (execfile "p1_tests/test17.txt") 'false)
-(display "P1 test 18: ") (equal? (execfile "p1_tests/test18.txt") 'true)
-(display "P1 test 19: ") (equal? (execfile "p1_tests/test19.txt") 128)
-(display "P1 test 20: ") (equal? (execfile "p1_tests/test20.txt") 12)
+;(display "P1 test 15: ") (equal? (execfile "p1_tests/test15.txt") 'true)
+;(display "P1 test 16: ") (equal? (execfile "p1_tests/test16.txt") 100)
+;(display "P1 test 17: ") (equal? (execfile "p1_tests/test17.txt") 'false)
+;(display "P1 test 18: ") (equal? (execfile "p1_tests/test18.txt") 'true)
+;(display "P1 test 19: ") (equal? (execfile "p1_tests/test19.txt") 128)
+;(display "P1 test 20: ") (equal? (execfile "p1_tests/test20.txt") 12)
 ; Tests 21-28 are expected to fail. The feature they test is not implemented.
 ;(display "P1 test 21: ") (equal? (execfile "p1_tests/test21.txt") 30)
 ;(display "P1 test 22: ") (equal? (execfile "p1_tests/test22.txt") 11)
@@ -405,28 +440,31 @@
 ; Language tests (P2)
 ; --------------------
 
-(display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
-(display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
-(display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
-(display "P2 test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
+;(display "P2 test 1: ") (equal? (execfile "p2_tests/test1.txt") 20)
+;(display "P2 test 2: ") (equal? (execfile "p2_tests/test2.txt") 164)
+;(display "P2 test 3: ") (equal? (execfile "p2_tests/test3.txt") 32)
+;(display "P2 test 4: ") (equal? (execfile "p2_tests/test4.txt") 2)
 ; When enabled, test 5 should produce a "variable not declared" error
 ;(display "P2 test 5: ") (execfile "p2_tests/test5.txt")
-(display "P2 test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
-(display "P2 test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
-(display "P2 test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
-(display "P2 test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
-(display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
+;(display "P2 test 6: ") (equal? (execfile "p2_tests/test6.txt") 25)
+;(display "P2 test 7: ") (equal? (execfile "p2_tests/test7.txt") 21)
+;(display "P2 test 8: ") (equal? (execfile "p2_tests/test8.txt") 6)
+;(display "P2 test 9: ") (equal? (execfile "p2_tests/test9.txt") -1)
+;(display "P2 test 10: ") (equal? (execfile "p2_tests/test10.txt") 789)
 ; When enabled, tests 11-12 should throw a "variable not declared" error
 ;(display "P2 test 11: ") (execfile "p2_tests/test11.txt")
 ;(display "P2 test 12: ") (execfile "p2_tests/test12.txt")
 ; When enabled, test 13 should produce a "break not in loop" error
 ;(display "P2 test 13: ") (execfile "p2_tests/test13.txt")
-(display "P2 test 14: ") (equal? (execfile "p2_tests/test14.txt") 12)
-(display "P2 test 15: ") (equal? (execfile "p2_tests/test15.txt") 125)
-(display "P2 test 16: ") (equal? (execfile "p2_tests/test16.txt") 110)
-(display "P2 test 17: ") (equal? (execfile "p2_tests/test17.txt") 2000400)
-(display "P2 test 18: ") (equal? (execfile "p2_tests/test18.txt") 101)
+;(display "P2 test 14: ") (equal? (execfile "p2_tests/test14.txt") 12)
+;(display "P2 test 15: ") (equal? (execfile "p2_tests/test15.txt") 125)
+;(display "P2 test 16: ") (equal? (execfile "p2_tests/test16.txt") 110)
+;(display "P2 test 17: ") (equal? (execfile "p2_tests/test17.txt") 2000400)
+;(display "P2 test 18: ") (equal? (execfile "p2_tests/test18.txt") 101)
 ; When enabled, test 19 should produce a "throw not inside try" error
 ;(display "P2 test 19: ") (execfile "p2_tests/test19.txt")
 ; Test 20 is expected to fail. The feature it tests is not implemented.
 ;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
+
+;(execfile "test0.txt")
+(outer-layer-interpret (parser "test0.txt") (empty-state-stack))

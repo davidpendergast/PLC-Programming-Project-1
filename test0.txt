@@ -1,0 +1,9 @@
+function a(x, y) {
+  return x + y;
+}
+
+function main () {
+  var x = 10;
+  var y = 15;
+  return gcd(x, y);
+}

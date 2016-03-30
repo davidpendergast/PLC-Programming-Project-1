@@ -70,5 +70,5 @@
       ((state-declared? var (stack-peek stack)) (stack-push (state-assign var val (stack-peek stack)) (stack-pop stack)))
       (else (stack-push (stack-peek stack) (stack-assign var val (stack-pop stack)))))))
 
-(define test-stack '(((a b c) (1 2 3)) ((d e f) (4 5 6))))
-(stack-assign 'd 10 (stack-declare 'g test-stack))
+;(define test-stack '(((a b c) (1 2 3)) ((d e f) (4 5 6))))
+;(stack-assign 'd 10 (stack-declare 'g test-stack))
