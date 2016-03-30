@@ -261,10 +261,23 @@
   (lambda (name args stmts s)
     (stack-assign name (list args stmts) (stack-declare name s))))
 
+(define actual-to-formal
+  (lambda (actual formal s)
+    (if (null? formal)
+      s
+      (actual-to-formal (cdr actual) (cdr formal) (stack-assign (car formal) (M_value (car actual) s) (stack-declare (car formal) s))))))
+
+(define M_function-call-value
+  (lambda (name actual s)
+    (call/cc
+      (lambda (return)
+        (M_begin (cdr (stack-get name)) (actual-to-formal actual (car (stack-get name)) (stack-push (empty-state) s)) (lambda (v) (return (car v))) initial-break initial-continue initial-throw)))))
+
 (define M_function-call-state
-  (lambda (name args s return break continue)
-  0))
-    
+  (lambda (name actual s)
+    (call/cc
+      (lambda (return)
+        (M_begin (cdr (stack-get name)) (actual-to-formal actual (car (stack-get name)) (stack-push (empty-state) s)) (lambda (v) (return (stack-pop (cadr v)))) initial-break initial-continue initial-throw)))))
 
 
 ; -------------------------------------------------
