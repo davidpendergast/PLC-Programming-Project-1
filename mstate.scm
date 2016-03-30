@@ -73,10 +73,7 @@
        (if (null? parsetree)
            (error "parse tree reached no return statement")
            (interpret (cdr parsetree)
-                      (M_state (car parsetree) s return
-                               (lambda (v) (error "break not in a loop"))
-                               (lambda (v) (error "continue not in a loop"))
-                               (lambda (v1 v2) (error "throw not inside try")))))))))
+                      (M_state (car parsetree) s return initial-break initial-continue initial-throw)))))))
 
 ; ---------------
 ;   M functions
