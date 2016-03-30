@@ -19,8 +19,9 @@
 ; A variable
 (define var cadr)
 ; An expression that can be evaluated
-(define value caddr)
-
+(define val caddr)
+(define value car)
+(define state cadr)
 (define function-body cdr)
 ; Code blocks following begin or try
 (define blocks cdr)
@@ -91,17 +92,17 @@
       ((eq? 'false expr) '(#f s))
       ((symbol? expr) '((stack-get expr s) s))
       ((and (eq? (operator expr) '-)
-            (null? (cddr expr))) '((* (M_value (operand1 expr) s) -1) s))
-      ((eq? (operator expr) '+) '((+ (M_value (operand1 expr) s)
-                                   (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '-) '((- (M_value (operand1 expr) s)
-                                   (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '*) '((* (M_value (operand1 expr) s)
-                                   (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '/) '((quotient (M_value (operand1 expr) s)
-                                          (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '%) '((remainder (M_value (operand1 expr) s)
-                                           (M_value (operand2 expr) s)) s))
+            (null? (cddr expr))) '((* (value (M_value (operand1 expr) s)) -1) s))
+      ((eq? (operator expr) '+) '((+ (value (M_value (operand1 expr)) s)
+                                   (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '-) '((- (value (M_value (operand1 expr) s))
+                                   (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '*) '((* (value (M_value (operand1 expr) s))
+                                   (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '/) '((quotient (value (M_value (operand1 expr) s))
+                                          (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '%) '((remainder (value (M_value (operand1 expr) s))
+                                           (value (M_value (operand2 expr) s))) s))
       (else (error "unknown expression" expr)))))
 
 ; Given a logical expression, returns its boolean value
@@ -113,23 +114,23 @@
       ((eq? 'true expr) '(#t s))
       ((eq? 'false expr) '(#f s))
       ((symbol? expr) '((stack-get expr s) s))
-      ((eq? (operator expr) '==) '((equal? (M_value (operand1 expr) s)
-                                         (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '!=) '((not (equal? (M_value (operand1 expr) s)
-                                              (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '<) '((< (M_value (operand1 expr) s)
-                                   (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '>) '((> (M_value (operand1 expr) s)
-                                   (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '<=) '((<= (M_value (operand1 expr) s)
-                                     (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '>=) '((>= (M_value (operand1 expr) s)
-                                     (M_value (operand2 expr) s)) s))
-      ((eq? (operator expr) '&&) '((and (M_boolean (operand1 expr) s)
-                                      (M_boolean (operand2 expr) s)) s))
-      ((eq? (operator expr) '||) '((or (M_boolean (operand1 expr) s)
-                                     (M_boolean (operand2 expr) s)) s))
-      ((eq? (operator expr) '!) '((not (M_boolean (operand1 expr) s)) s))
+      ((eq? (operator expr) '==) '((equal? (value (M_value (operand1 expr) s))
+                                         (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '!=) '((not (equal? (value (M_value (operand1 expr) s))
+                                              (value (M_value (operand2 expr) s)))) s))
+      ((eq? (operator expr) '<) '((< (value (M_value (operand1 expr) s))
+                                   (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '>) '((> (value (M_value (operand1 expr) s))
+                                   (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '<=) '((<= (value (M_value (operand1 expr) s))
+                                     (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '>=) '((>= (value (M_value (operand1 expr) s))
+                                     (value (M_value (operand2 expr) s))) s))
+      ((eq? (operator expr) '&&) '((and (value (M_boolean (operand1 expr) s))
+                                      (value (M_boolean (operand2 expr) s))) s))
+      ((eq? (operator expr) '||) '((or (value (M_boolean (operand1 expr) s))
+                                     (value (M_boolean (operand2 expr) s))) s))
+      ((eq? (operator expr) '!) '((not (value (M_boolean (operand1 expr) s))) s))
       (else (error "unknown expression" expr)))))
 
 ; Given a statement,
@@ -139,8 +140,8 @@
     (cond
       ((declare? stmt) (M_declare (var stmt) s))
       ((declare_with_assign? stmt) (M_declare_with_assign (var stmt)
-                                                          (value stmt) s))
-      ((assign? stmt) (M_assign (var stmt) (value stmt) s))
+                                                          (val stmt) s))
+      ((assign? stmt) (M_assign (var stmt) (val stmt) s))
       ((if? stmt) (M_if (condition stmt) (body stmt) s return break continue throw))
       ((if_with_else? stmt) (M_if_else (condition stmt) (body stmt)
                                        (else-stmt stmt) s return break continue throw))
@@ -201,9 +202,9 @@
 (define M_declare_with_assign
   (lambda (var expr s)
     (if (condition? expr s)
-        (stack-assign var (M_boolean expr (stack-declare var s))
+        (stack-assign var (value (M_boolean expr (stack-declare var s)))
                       (stack-declare var s))
-        (stack-assign var (M_value expr (stack-declare var s))
+        (stack-assign var (value (M_value expr (stack-declare var s)))
                       (stack-declare var s)))))
 
 ; Given a variable and an expression,
@@ -211,17 +212,17 @@
 (define M_assign
   (lambda (var expr s)
     (if (condition? expr s)
-        (stack-assign var (M_boolean expr s) s)
-        (stack-assign var (M_value expr s) s))))
+        (stack-assign var (value (M_boolean expr s)) s)
+        (stack-assign var (value (M_value expr s)) s))))
 
 ; Given a statement that can be evaluated,
 ; returns the value of the statement
 (define M_return
   (lambda (expr s return)
     (if (condition? expr s)
-        (if (M_boolean expr s)
-            (return 'true)
-            (return 'false))
+        (if (value (M_boolean expr s))
+            (return '('true s))
+            (return '('false s)))
         (return (M_value expr s)))))
 
 ; Given a condition and two statements,
@@ -229,7 +230,7 @@
 ; is met or, otherwise, the state following execution of the second statement
 (define M_if_else
   (lambda (condition then-stmt else-stmt s return break continue throw)
-    (if (M_boolean condition s)
+    (if (value (M_boolean condition s))
         (M_state then-stmt s return break continue throw)
         (M_state else-stmt s return break continue throw))))
 
@@ -238,7 +239,7 @@
 ; is met or the original state if the condition is not met
 (define M_if
   (lambda (condition then-stmt s return break continue throw)
-    (if (M_boolean condition s)
+    (if (value (M_boolean condition s))
         (M_state then-stmt s return break continue throw)
         s)))
 
@@ -252,7 +253,7 @@
         (lambda (continue)
           (letrec ((loop (lambda (loop-body s)
                            ;(display s)(display "$$$")
-                           (if (M_boolean condition s)
+                           (if (value (M_boolean condition s))
                                (loop loop-body (M_state loop-body s return break (lambda (v) (continue (loop loop-body (stack-pop v)))) throw))
                                s))))
             (loop loop-body s))))))))
@@ -271,13 +272,13 @@
   (lambda (name actual s)
     (call/cc
       (lambda (return)
-        (M_begin (cdr (stack-get name)) (actual-to-formal actual (car (stack-get name)) (stack-push (empty-state) s)) (lambda (v) (return (car v))) initial-break initial-continue initial-throw)))))
+        (M_begin (cdr (stack-get name)) (actual-to-formal actual (car (stack-get name)) (stack-push (empty-state) s)) (lambda (v) (return (value v))) initial-break initial-continue initial-throw)))))
 
 (define M_function-call-state
   (lambda (name actual s)
     (call/cc
       (lambda (return)
-        (M_begin (cdr (stack-get name)) (actual-to-formal actual (car (stack-get name)) (stack-push (empty-state) s)) (lambda (v) (return (stack-pop (cadr v)))) initial-break initial-continue initial-throw)))))
+        (M_begin (cdr (stack-get name)) (actual-to-formal actual (car (stack-get name)) (stack-push (empty-state) s)) (lambda (v) (return (stack-pop (state v)))) initial-break initial-continue initial-throw)))))
 
 
 ; -------------------------------------------------
