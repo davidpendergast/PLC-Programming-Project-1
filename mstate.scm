@@ -4,6 +4,7 @@
 ; Joel Kalos
 ; Kevin Nash
 
+(load "functionParser.scm")
 (load "simpleParser.scm")
 (load "state-stack.scm")
 
