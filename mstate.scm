@@ -480,4 +480,4 @@
 ;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
 
 ;(execfile "test0.txt")
-(outer-layer-interpret (parser "test0.txt") (empty-state-stack))
+(outer-layer-interpret (parser "p3_tests/test0.txt") (empty-state-stack))
