@@ -265,7 +265,7 @@
   (lambda (actual formal s)
     (if (null? formal)
       s
-      (actual-to-formal (cdr actual) (cdr formal) (stack-assign (car formal) (M_value (car actual) s) (stack-declare (car formal) s))))))
+      (actual-to-formal (cdr actual) (cdr formal) (M_declare_with_assign (car formal) (car actual) s)))))
 
 (define M_function-call-value
   (lambda (name actual s)
