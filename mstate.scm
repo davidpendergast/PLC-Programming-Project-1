@@ -215,14 +215,19 @@
 ; returns the state after changing the value of the variable
 (define M_assign
   (lambda (var expr s throw)
+    ;(display s)
+    ;(display "\n")
     (if (condition? expr s)
         (stack-assign var (value (M_boolean expr s throw)) s)
-        (stack-assign var (value (M_value expr s throw)) s))))
+        (stack-assign var (value (M_value expr s throw)) (state (M_value expr s throw))))))
 
 ; Given a statement that can be evaluated,
 ; returns the value of the statement
 (define M_return
   (lambda (expr s return throw)
+    (display s)
+    (display "\n")
+    (display "\n")
     (if (condition? expr s)
         (if (value (M_boolean expr s throw))
             (return (list 'true s))
@@ -289,7 +294,7 @@
   (lambda (name actual s throw)
     (call/cc
      (lambda (return)
-       (M_begin (cadr (stack-get name s)) (actual-to-formal (list-to-value actual s throw) (car (stack-get name s)) (stack-push (empty-state) s) throw) (lambda (v) (return (stack-pop (state v)))) initial-break initial-continue throw)))))
+       (M_begin (cadr (stack-get name s)) (actual-to-formal (list-to-value actual s throw) (car (stack-get name s)) (stack-push (empty-state) s) throw) (lambda (v) (return (stack-pop (stack-pop (state v))))) initial-break initial-continue throw)))))
 
 
 ; -------------------------------------------------
@@ -491,26 +496,26 @@
 ; Test 20 is expected to fail. The feature it tests is not implemented.
 ;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
 
-(display "P3 test 1: ") (equal? (execfile "p3_tests/test1.txt") 10)
-(display "P3 test 2: ") (equal? (execfile "p3_tests/test2.txt") 14)
-(display "P3 test 3: ") (equal? (execfile "p3_tests/test3.txt") 45)
-(display "P3 test 4: ") (equal? (execfile "p3_tests/test4.txt") 55)
-(display "P3 test 5: ") (equal? (execfile "p3_tests/test5.txt") 1)
-(display "P3 test 6: ") (equal? (execfile "p3_tests/test6.txt") 115)
-(display "P3 test 7: ") (equal? (execfile "p3_tests/test7.txt") 'true)
-(display "P3 test 8: ") (equal? (execfile "p3_tests/test8.txt") 20)
-(display "P3 test 9: ") (equal? (execfile "p3_tests/test9.txt") 24)
-(display "P3 test 10: ") (equal? (execfile "p3_tests/test10.txt") 2)
-(display "P3 test 11: ") (equal? (execfile "p3_tests/test11.txt") 35)
+;(display "P3 test 1: ") (equal? (execfile "p3_tests/test1.txt") 10)
+;(display "P3 test 2: ") (equal? (execfile "p3_tests/test2.txt") 14)
+;(display "P3 test 3: ") (equal? (execfile "p3_tests/test3.txt") 45)
+;(display "P3 test 4: ") (equal? (execfile "p3_tests/test4.txt") 55)
+;(display "P3 test 5: ") (equal? (execfile "p3_tests/test5.txt") 1)
+(display "P3 test 6: ") (execfile "p3_tests/test6.txt")
+;(display "P3 test 7: ") (equal? (execfile "p3_tests/test7.txt") 'true)
+;(display "P3 test 8: ") (equal? (execfile "p3_tests/test8.txt") 20)
+;(display "P3 test 9: ") (equal? (execfile "p3_tests/test9.txt") 24)
+;(display "P3 test 10: ") (equal? (execfile "p3_tests/test10.txt") 2)
+;(display "P3 test 11: ") (equal? (execfile "p3_tests/test11.txt") 35)
 ;(execfile "p3_tests/test12.txt")
-(display "P3 test 13: ") (equal? (execfile "p3_tests/test13.txt") 90)
-(display "P3 test 14: ") (equal? (execfile "p3_tests/test14.txt") 69)
-(display "P3 test 15: ") (equal? (execfile "p3_tests/test15.txt") 87)
-(display "P3 test 16: ") (equal? (execfile "p3_tests/test16.txt") 64)
+;(display "P3 test 13: ") (equal? (execfile "p3_tests/test13.txt") 90)
+;(display "P3 test 14: ") (execfile "p3_tests/test14.txt")
+;(display "P3 test 15: ") (execfile "p3_tests/test15.txt")
+;(display "P3 test 16: ") (equal? (execfile "p3_tests/test16.txt") 64)
 ;(execfile "p3_tests/test17.txt")
-(display "P3 test 18: ") (equal? (execfile "p3_tests/test18.txt") 125)
-(display "P3 test 19: ") (equal? (execfile "p3_tests/test19.txt") 100)
-(display "P3 test 20: ") (equal? (execfile "p3_tests/test20.txt") 2000400)
+;(display "P3 test 18: ") (equal? (execfile "p3_tests/test18.txt") 125)
+;(display "P3 test 19: ") (equal? (execfile "p3_tests/test19.txt") 100)
+;(display "P3 test 20: ") (equal? (execfile "p3_tests/test20.txt") 2000400)
 ;(outer-layer-interpret (parser "p3_tests/test0.txt") (empty-state-stack))
 
 
