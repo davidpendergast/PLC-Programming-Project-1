@@ -81,7 +81,7 @@
 
 ; Given a arithmetic expression, returns its numerical value
 (define M_value
-  (lambda (expr s)
+  (lambda (expr s throw)
     ;(display expr)
     ;(display "\n")
     (cond
@@ -91,47 +91,47 @@
       ((eq? 'false expr) (list #f s))
       ((symbol? expr) (list (stack-get expr s) s))
       ((and (eq? (operator expr) '-)
-            (null? (cddr expr))) (list (* (value (M_value (operand1 expr) s)) -1) s))
-      ((eq? (operator expr) '+) (list (+ (value (M_value (operand1 expr) s))
-                                         (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '-) (list (- (value (M_value (operand1 expr) s))
-                                         (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '*) (list (* (value (M_value (operand1 expr) s))
-                                         (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '/) (list (quotient (value (M_value (operand1 expr) s))
-                                                (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '%) (list (remainder (value (M_value (operand1 expr) s))
-                                                 (value (M_value (operand2 expr) s))) s))
-      ((function-call? expr) (list (M_function-call-value (cadr expr) (cddr expr) s) (M_function-call-state (cadr expr) (cddr expr) s)))
+            (null? (cddr expr))) (list (* (value (M_value (operand1 expr) s throw)) -1) s))
+      ((eq? (operator expr) '+) (list (+ (value (M_value (operand1 expr) s throw))
+                                         (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '-) (list (- (value (M_value (operand1 expr) s throw))
+                                         (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '*) (list (* (value (M_value (operand1 expr) s throw))
+                                         (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '/) (list (quotient (value (M_value (operand1 expr) s throw))
+                                                (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '%) (list (remainder (value (M_value (operand1 expr) s throw))
+                                                 (value (M_value (operand2 expr) s throw))) s))
+      ((function-call? expr) (list (M_function-call-value (cadr expr) (cddr expr) s throw) (M_function-call-state (cadr expr) (cddr expr) s throw)))
       (else (error "unknown expression" expr)))))
 
 ; Given a logical expression, returns its boolean value
 (define M_boolean
-  (lambda (expr s)
+  (lambda (expr s throw)
     (cond
       ((number? expr) (list expr s))
       ((boolean? expr) (list expr s))
       ((eq? 'true expr) (list #t s))
       ((eq? 'false expr) (list #f s))
       ((symbol? expr) (list (stack-get expr s) s))
-      ((eq? (operator expr) '==) (list (equal? (value (M_value (operand1 expr) s))
-                                               (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '!=) (list (not (equal? (value (M_value (operand1 expr) s))
-                                                    (value (M_value (operand2 expr) s)))) s))
-      ((eq? (operator expr) '<) (list (< (value (M_value (operand1 expr) s))
-                                         (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '>) (list (> (value (M_value (operand1 expr) s))
-                                         (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '<=) (list (<= (value (M_value (operand1 expr) s))
-                                           (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '>=) (list (>= (value (M_value (operand1 expr) s))
-                                           (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '&&) (list (and (value (M_boolean (operand1 expr) s))
-                                            (value (M_boolean (operand2 expr) s))) s))
-      ((eq? (operator expr) '||) (list (or (value (M_boolean (operand1 expr) s))
-                                           (value (M_boolean (operand2 expr) s))) s))
-      ((eq? (operator expr) '!) (list (not (value (M_boolean (operand1 expr) s))) s))
-      ((function-call? expr) (list (M_function-call-value (cadr expr) (cddr expr) s) (M_function-call-state (cadr expr) (cddr expr) s)))
+      ((eq? (operator expr) '==) (list (equal? (value (M_value (operand1 expr) s throw))
+                                               (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '!=) (list (not (equal? (value (M_value (operand1 expr) s throw))
+                                                    (value (M_value (operand2 expr) s throw)))) s))
+      ((eq? (operator expr) '<) (list (< (value (M_value (operand1 expr) s throw))
+                                         (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '>) (list (> (value (M_value (operand1 expr) s throw))
+                                         (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '<=) (list (<= (value (M_value (operand1 expr) s throw))
+                                           (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '>=) (list (>= (value (M_value (operand1 expr) s throw))
+                                           (value (M_value (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '&&) (list (and (value (M_boolean (operand1 expr) s throw))
+                                            (value (M_boolean (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '||) (list (or (value (M_boolean (operand1 expr) s throw))
+                                           (value (M_boolean (operand2 expr) s throw))) s))
+      ((eq? (operator expr) '!) (list (not (value (M_boolean (operand1 expr) s throw))) s))
+      ((function-call? expr) (list (M_function-call-value (cadr expr) (cddr expr) s throw) (M_function-call-state (cadr expr) (cddr expr) s throw)))
       (else (error "unknown expression" expr)))))
 
 ; Given a statement,
@@ -141,19 +141,19 @@
     (cond
       ((declare? stmt) (M_declare (var stmt) s))
       ((declare_with_assign? stmt) (M_declare_with_assign (var stmt)
-                                                          (val stmt) s))
-      ((assign? stmt) (M_assign (var stmt) (val stmt) s))
+                                                          (val stmt) s throw))
+      ((assign? stmt) (M_assign (var stmt) (val stmt) s throw))
       ((if? stmt) (M_if (condition stmt) (body stmt) s return break continue throw))
       ((if_with_else? stmt) (M_if_else (condition stmt) (body stmt)
                                        (else-stmt stmt) s return break continue throw))
       ((while? stmt) (M_while (condition stmt) (body stmt) s return throw))
-      ((return? stmt) (M_return (var stmt) s return))
+      ((return? stmt) (M_return (var stmt) s return throw))
       ((begin? stmt) (M_begin (blocks stmt) s return break continue throw))
       ((try? stmt) (M_try (blocks stmt) s return break continue throw))
       ((try_with_finally? stmt) (M_try_with_finally (blocks stmt) s return break continue throw))
       ((break? stmt) (break s))
       ((continue? stmt) (continue s))
-      ((throw? stmt) (throw (var stmt) s))
+      ((throw? stmt) (throw (value (M_value (var stmt) s throw)) s))
       ((function-assign? stmt) (M_function-assign (cadr stmt) (caddr stmt) (cadddr stmt) s))
       ((function-call? stmt) (M_function-call-state (cadr stmt) (cddr stmt) s throw))
       (else (error stmt "unknown statement")))))
@@ -204,37 +204,37 @@
 ; Given a variable and an expression,
 ; returns the state after adding the initialized variable to the state
 (define M_declare_with_assign
-  (lambda (var expr s)
+  (lambda (var expr s throw)
     (if (condition? expr s)
-        (stack-assign var (value (M_boolean expr (stack-declare var s)))
+        (stack-assign var (value (M_boolean expr (stack-declare var s) throw))
                       (stack-declare var s))
-        (stack-assign var (value (M_value expr (stack-declare var s)))
+        (stack-assign var (value (M_value expr (stack-declare var s) throw))
                       (stack-declare var s)))))
 
 ; Given a variable and an expression,
 ; returns the state after changing the value of the variable
 (define M_assign
-  (lambda (var expr s)
+  (lambda (var expr s throw)
     (if (condition? expr s)
-        (stack-assign var (value (M_boolean expr s)) s)
-        (stack-assign var (value (M_value expr s)) s))))
+        (stack-assign var (value (M_boolean expr s throw)) s)
+        (stack-assign var (value (M_value expr s throw)) s))))
 
 ; Given a statement that can be evaluated,
 ; returns the value of the statement
 (define M_return
-  (lambda (expr s return)
+  (lambda (expr s return throw)
     (if (condition? expr s)
-        (if (value (M_boolean expr s))
+        (if (value (M_boolean expr s throw))
             (return (list 'true s))
             (return (list 'false s)))
-        (return (M_value expr s)))))
+        (return (M_value expr s throw)))))
 
 ; Given a condition and two statements,
 ; returns the state following execution of the first statement if the condition
 ; is met or, otherwise, the state following execution of the second statement
 (define M_if_else
   (lambda (condition then-stmt else-stmt s return break continue throw)
-    (if (value (M_boolean condition s))
+    (if (value (M_boolean condition s throw))
         (M_state then-stmt s return break continue throw)
         (M_state else-stmt s return break continue throw))))
 
@@ -243,7 +243,7 @@
 ; is met or the original state if the condition is not met
 (define M_if
   (lambda (condition then-stmt s return break continue throw)
-    (if (value (M_boolean condition s))
+    (if (value (M_boolean condition s throw))
         (M_state then-stmt s return break continue throw)
         s)))
 
@@ -257,7 +257,7 @@
         (lambda (continue)
           (letrec ((loop (lambda (loop-body s)
                            ;(display s)(display "$$$")
-                           (if (value (M_boolean condition s))
+                           (if (value (M_boolean condition s throw))
                                (loop loop-body (M_state loop-body s return break (lambda (v) (continue (loop loop-body (stack-pop v)))) throw))
                                s))))
             (loop loop-body s))))))))
@@ -267,29 +267,29 @@
     (stack-assign name (list args stmts) (stack-declare name s))))
 
 (define actual-to-formal
-  (lambda (actual formal s)
+  (lambda (actual formal s throw)
     (cond
       ((and (null? formal) (null? actual)) s)
       ((not (equal? (null? formal) (null? actual))) (error "Actual and formal argument lists differ in length"))
-      (else (actual-to-formal (cdr actual) (cdr formal) (M_declare_with_assign (car formal) (car actual) s))))))
+      (else (actual-to-formal (cdr actual) (cdr formal) (M_declare_with_assign (car formal) (car actual) s throw) throw)))))
 
 (define list-to-value
-  (lambda(actual s)
+  (lambda(actual s throw)
     (if (null? actual)
         '()
-        (cons (value (M_value (car actual) s)) (list-to-value (cdr actual) s)))))
+        (cons (value (M_value (car actual) s throw)) (list-to-value (cdr actual) s throw)))))
 
 (define M_function-call-value
   (lambda (name actual s throw)
     (call/cc
      (lambda (return)
-       (M_begin (cadr (stack-get name s)) (actual-to-formal (list-to-value actual s) (car (stack-get name s)) (stack-push (empty-state) s)) (lambda (v) (return (value v))) initial-break initial-continue throw)))))
+       (M_begin (cadr (stack-get name s)) (actual-to-formal (list-to-value actual s throw) (car (stack-get name s)) (stack-push (empty-state) s) throw) (lambda (v) (return (value v))) initial-break initial-continue throw)))))
 
 (define M_function-call-state
   (lambda (name actual s throw)
     (call/cc
      (lambda (return)
-       (M_begin (cadr (stack-get name s)) (actual-to-formal (list-to-value actual s) (car (stack-get name s)) (stack-push (empty-state) s)) (lambda (v) (return (stack-pop (state v)))) initial-break initial-continue throw)))))
+       (M_begin (cadr (stack-get name s)) (actual-to-formal (list-to-value actual s throw) (car (stack-get name s)) (stack-push (empty-state) s) throw) (lambda (v) (return (stack-pop (state v)))) initial-break initial-continue throw)))))
 
 
 ; -------------------------------------------------
@@ -491,26 +491,26 @@
 ; Test 20 is expected to fail. The feature it tests is not implemented.
 ;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
 
-(equal? (execfile "p3_tests/test1.txt") 10)
-(equal? (execfile "p3_tests/test2.txt") 14)
-(equal? (execfile "p3_tests/test3.txt") 45)
-(equal? (execfile "p3_tests/test4.txt") 55)
-(equal? (execfile "p3_tests/test5.txt") 1)
-(equal? (execfile "p3_tests/test6.txt") 115)
-(equal? (execfile "p3_tests/test7.txt") 'true)
-(equal? (execfile "p3_tests/test8.txt") 20)
-(equal? (execfile "p3_tests/test9.txt") 24)
-(equal? (execfile "p3_tests/test10.txt") 2)
-(equal? (execfile "p3_tests/test11.txt") 35)
+(display "P3 test 1: ") (equal? (execfile "p3_tests/test1.txt") 10)
+(display "P3 test 2: ") (equal? (execfile "p3_tests/test2.txt") 14)
+(display "P3 test 3: ") (equal? (execfile "p3_tests/test3.txt") 45)
+(display "P3 test 4: ") (equal? (execfile "p3_tests/test4.txt") 55)
+(display "P3 test 5: ") (equal? (execfile "p3_tests/test5.txt") 1)
+(display "P3 test 6: ") (equal? (execfile "p3_tests/test6.txt") 115)
+(display "P3 test 7: ") (equal? (execfile "p3_tests/test7.txt") 'true)
+(display "P3 test 8: ") (equal? (execfile "p3_tests/test8.txt") 20)
+(display "P3 test 9: ") (equal? (execfile "p3_tests/test9.txt") 24)
+(display "P3 test 10: ") (equal? (execfile "p3_tests/test10.txt") 2)
+(display "P3 test 11: ") (equal? (execfile "p3_tests/test11.txt") 35)
 ;(execfile "p3_tests/test12.txt")
-(equal? (execfile "p3_tests/test13.txt") 90)
-(equal? (execfile "p3_tests/test14.txt") 69)
-(equal? (execfile "p3_tests/test15.txt") 87)
-(equal? (execfile "p3_tests/test16.txt") 64)
+(display "P3 test 13: ") (equal? (execfile "p3_tests/test13.txt") 90)
+(display "P3 test 14: ") (equal? (execfile "p3_tests/test14.txt") 69)
+(display "P3 test 15: ") (equal? (execfile "p3_tests/test15.txt") 87)
+(display "P3 test 16: ") (equal? (execfile "p3_tests/test16.txt") 64)
 ;(execfile "p3_tests/test17.txt")
-(equal? (execfile "p3_tests/test18.txt") 125)
-(equal? (execfile "p3_tests/test19.txt") 100)
-(equal? (execfile "p3_tests/test20.txt") 2000400)
+(display "P3 test 18: ") (equal? (execfile "p3_tests/test18.txt") 125)
+(display "P3 test 19: ") (equal? (execfile "p3_tests/test19.txt") 100)
+(display "P3 test 20: ") (equal? (execfile "p3_tests/test20.txt") 2000400)
 ;(outer-layer-interpret (parser "p3_tests/test0.txt") (empty-state-stack))
 
 
