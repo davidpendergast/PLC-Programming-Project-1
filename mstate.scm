@@ -22,7 +22,7 @@
 (define val caddr)
 (define value car)
 (define state cadr)
-(define function-body cdr)
+(define function-body cadr)
 ; Code blocks following begin or try
 (define blocks cdr)
 ; Current (first) code block in blocks
@@ -73,7 +73,7 @@
        (if (null? parsetree)
            (error "parse tree reached no return statement")
            (interpret (cdr parsetree)
-                      (M_state (car parsetree) s return initial-break initial-continue initial-throw)))))))
+                      (M_state (car parsetree) s (lambda (v) (return (value v))) initial-break initial-continue initial-throw)))))))
 
 ; ---------------
 ;   M functions
@@ -82,52 +82,55 @@
 ; Given a arithmetic expression, returns its numerical value
 (define M_value
   (lambda (expr s)
+    (display expr)
+    (display "\n")
     (cond
-      ((number? expr) '(expr s))
-      ((boolean? expr) '(expr s))
-      ((eq? 'true expr) '(#t s))
-      ((eq? 'false expr) '(#f s))
-      ((symbol? expr) '((stack-get expr s) s))
+      ((number? expr) (list expr s))
+      ((boolean? expr) (list expr s))
+      ((eq? 'true expr) (list #t s))
+      ((eq? 'false expr) (list #f s))
+      ((symbol? expr) (list (stack-get expr s) s))
       ((and (eq? (operator expr) '-)
-            (null? (cddr expr))) '((* (value (M_value (operand1 expr) s)) -1) s))
-      ((eq? (operator expr) '+) '((+ (value (M_value (operand1 expr)) s)
+            (null? (cddr expr))) (list (* (value (M_value (operand1 expr) s)) -1) s))
+      ((eq? (operator expr) '+) (list (+ (value (M_value (operand1 expr) s))
                                    (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '-) '((- (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '-) (list (- (value (M_value (operand1 expr) s))
                                    (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '*) '((* (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '*) (list (* (value (M_value (operand1 expr) s))
                                    (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '/) '((quotient (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '/) (list (quotient (value (M_value (operand1 expr) s))
                                           (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '%) '((remainder (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '%) (list (remainder (value (M_value (operand1 expr) s))
                                            (value (M_value (operand2 expr) s))) s))
+      ((function-call? expr) (list (M_function-call-value (cadr expr) (cddr expr) s) (M_function-call-state (cadr expr) (cddr expr) s)))
       (else (error "unknown expression" expr)))))
 
 ; Given a logical expression, returns its boolean value
 (define M_boolean
   (lambda (expr s)
     (cond
-      ((number? expr) '(expr s))
-      ((boolean? expr) '(expr s))
-      ((eq? 'true expr) '(#t s))
-      ((eq? 'false expr) '(#f s))
-      ((symbol? expr) '((stack-get expr s) s))
-      ((eq? (operator expr) '==) '((equal? (value (M_value (operand1 expr) s))
+      ((number? expr) (list expr s))
+      ((boolean? expr) (list expr s))
+      ((eq? 'true expr) (list #t s))
+      ((eq? 'false expr) (list #f s))
+      ((symbol? expr) (list (stack-get expr s) s))
+      ((eq? (operator expr) '==) (list (equal? (value (M_value (operand1 expr) s))
                                          (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '!=) '((not (equal? (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '!=) (list (not (equal? (value (M_value (operand1 expr) s))
                                               (value (M_value (operand2 expr) s)))) s))
-      ((eq? (operator expr) '<) '((< (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '<) (list (< (value (M_value (operand1 expr) s))
                                    (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '>) '((> (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '>) (list (> (value (M_value (operand1 expr) s))
                                    (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '<=) '((<= (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '<=) (list (<= (value (M_value (operand1 expr) s))
                                      (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '>=) '((>= (value (M_value (operand1 expr) s))
+      ((eq? (operator expr) '>=) (list (>= (value (M_value (operand1 expr) s))
                                      (value (M_value (operand2 expr) s))) s))
-      ((eq? (operator expr) '&&) '((and (value (M_boolean (operand1 expr) s))
+      ((eq? (operator expr) '&&) (list (and (value (M_boolean (operand1 expr) s))
                                       (value (M_boolean (operand2 expr) s))) s))
-      ((eq? (operator expr) '||) '((or (value (M_boolean (operand1 expr) s))
+      ((eq? (operator expr) '||) (list (or (value (M_boolean (operand1 expr) s))
                                      (value (M_boolean (operand2 expr) s))) s))
-      ((eq? (operator expr) '!) '((not (value (M_boolean (operand1 expr) s))) s))
+      ((eq? (operator expr) '!) (list (not (value (M_boolean (operand1 expr) s))) s))
       (else (error "unknown expression" expr)))))
 
 ; Given a statement,
@@ -151,6 +154,7 @@
       ((continue? stmt) (continue s))
       ((throw? stmt) (throw (var stmt) s))
       ((function-assign? stmt) (M_function-assign (cadr stmt) (caddr stmt) (cadddr stmt) s))
+      ((function-call? stmt) (M_function-call-state (cadr stmt) (cddr stmt) s))
       (else (error stmt "unknown statement")))))
 
 ; Given a code block,
@@ -158,6 +162,8 @@
 (define M_begin
   (lambda (stmts s return break continue throw)
     (letrec ((loop (lambda (stmts s)
+                     (display stmts)
+                     (display "\n")
                      (cond
                        ((null? stmts) (stack-pop s))
                        (else (loop (blocks stmts) (M_state (current-block stmts) s return (lambda (v) (break (stack-pop v))) continue (lambda (v1 v2) (throw v1 (stack-pop v2))))))))))
@@ -218,8 +224,8 @@
   (lambda (expr s return)
     (if (condition? expr s)
         (if (value (M_boolean expr s))
-            (return '('true s))
-            (return '('false s)))
+            (return (list 'true s))
+            (return (list 'false s)))
         (return (M_value expr s)))))
 
 ; Given a condition and two statements,
@@ -269,13 +275,13 @@
   (lambda (name actual s)
     (call/cc
       (lambda (return)
-        (M_begin (cdr (stack-get name)) (actual-to-formal actual (car (stack-get name)) (stack-push (empty-state) s)) (lambda (v) (return (value v))) initial-break initial-continue initial-throw)))))
+        (M_begin (cadr (stack-get name s)) (actual-to-formal actual (car (stack-get name s)) (stack-push (empty-state) s)) (lambda (v) (return (value v))) initial-break initial-continue initial-throw)))))
 
 (define M_function-call-state
   (lambda (name actual s)
     (call/cc
       (lambda (return)
-        (M_begin (cdr (stack-get name)) (actual-to-formal actual (car (stack-get name)) (stack-push (empty-state) s)) (lambda (v) (return (stack-pop (state v)))) initial-break initial-continue initial-throw)))))
+        (M_begin (cadr (stack-get name s)) (actual-to-formal actual (car (stack-get name s)) (stack-push (empty-state) s)) (lambda (v) (return (stack-pop (state v)))) initial-break initial-continue initial-throw)))))
 
 
 ; -------------------------------------------------
@@ -396,7 +402,7 @@
 
 (define function-call?
   (lambda (stmt)
-    (eq? (opperator stmt) 'funcall)))
+    (eq? (operator stmt) 'funcall)))
 
 ; -----------
 ; State tests
@@ -477,5 +483,7 @@
 ; Test 20 is expected to fail. The feature it tests is not implemented.
 ;(display "P2 test 20: ") (equal? (execfile "p2_tests/test14.txt") 21)
 
-;(execfile "test0.txt")
-(outer-layer-interpret (parser "p3_tests/test0.txt") (empty-state-stack))
+(execfile "p3_tests/test4.txt")
+;(outer-layer-interpret (parser "p3_tests/test0.txt") (empty-state-stack))
+
+
