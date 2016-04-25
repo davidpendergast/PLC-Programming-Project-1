@@ -10,7 +10,7 @@
   (lambda (name heap)
     (cond
       ((null? heap) (error "class does not exist"))
-      ((eq? (caar heap) name) (cdar heap))
+      ((eq? (caar heap) name) (car heap))
       (else (find-class name (cdr heap))))))
 
 (define get-parent
@@ -69,4 +69,4 @@
       ((not (eq? class-name instance-name)) (cons (car var-vals) (set-var class-name (get-parent instance-name heap) var-name val (cdr var-vals) heap)))
       ((eq? (find-var var-name (car var-vals) (find-vars class-name heap)) "DOESNOTEXIST") (cons (car var-vals) (set-var (get-parent class-name heap) (get-parent instance-name heap) var-name val (cdr var-vals) heap)))
       (else (cons (find-set-var var-name val (car var-vals) (find-vars class-name heap)) (cdr var-vals))))))
-      
+
