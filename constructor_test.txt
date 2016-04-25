@@ -1,20 +1,49 @@
-class A {
+class List {
+  var val;
+  var next;
 
-  var x = 100;
-
-  function setX(x) {
-    this.x = x;
+  function getNext() {
+    return next;
   }
 
-  function add(a) {
-    return a.x + this.x;
+  function makeList(x) {
+    if (x == 0)
+      next = 0;
+    else {
+      next = new List();
+      next.setVal(getVal()+1);
+      next.makeList(x-1);
+    }
   }
+
+  function setVal(x) {
+    val = x;
+  }
+
+  function getVal() {
+    return val;
+  }
+
+  function expand() {
+    var p = this;
+    while (p != 0) {
+      function exp(a) {
+        while (a != 0) {
+          this.setVal(this.getVal() + p.getVal() * a.getVal());
+          a = a.getNext();
+        }
+      }
+      exp(p);
+      p = p.getNext();
+    }
+  }
+
 
   static function main() {
-    var a1 = new A();
-    var a2 = new A();
-    a1.setX(30);
-    a2.setX(6);
-    return a1.add(a2);
+    var l = new List();
+    l.val = 1;
+    l.makeList(5);
+    l.expand();
+    return l.getVal();
   }
 }
