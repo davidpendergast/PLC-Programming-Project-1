@@ -1,21 +1,38 @@
 class A {
   var x = 1;
-  var y = x + 1;
-  var z = x + y + 1;
+  var y = 2;
 
-  A(a) {
-    x = a;
+  function m() {
+    return this.m2();
   }
 
-  A(a, b) {
-    x = a;
-    y = b;
+  function m2() {
+    return x+y;
+  }
+}
+
+class B extends A {
+  var y = 22;
+  var z = 3;
+
+  function m() {
+    return super.m();
+  }
+
+  function m2() {
+    return x+y+z;
+  }
+}
+
+class C extends B {
+  var y = 222;
+  var w = 4;
+
+  function m() {
+    return super.m();
   }
 
   static function main() {
-    var a = new A(10);
-    var b = new A(20, 5);
-
-    return (a.x + a.y + a.z) * 100 + (b.x + b.y + b.z);
+    return new C().m();
   }
 }

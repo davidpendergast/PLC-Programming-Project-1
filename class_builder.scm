@@ -13,7 +13,7 @@
 
 (define build-class
   (lambda (class)
-    (list (name class) (parse-parent (parent class)) (parse-vars (class-body class)) (parse-funcs (class-body class)) (add-to-constructors (get-var-assigns (class-body class)) (parse-constructors (class-body class))))))
+    (list (name class) (parse-parent (parent class)) (parse-vars (class-body class)) (parse-funcs (class-body class)) (add-to-constructors (get-var-assigns (class-body class)) (ensure-constructor (parse-constructors (class-body class)))))))
 
 (define parse-parent
   (lambda (parent-line)
@@ -32,7 +32,7 @@
   (lambda (body)
     (cond
       ((null? body) '())
-      ((eq? (caar body) 'function) (cons (cdar body) (parse-funcs (cdr body))))
+      ((or (eq? (caar body) 'function) (eq? (caar body) 'static-function)) (cons (cdar body) (parse-funcs (cdr body))))
       (else (parse-funcs (cdr body))))))
 
 (define parse-constructors
@@ -41,6 +41,12 @@
       ((null? body) '())
       ((eq? (caar body) 'constructor) (cons (cdar body) (parse-constructors (cdr body))))
       (else (parse-constructors (cdr body))))))
+
+(define ensure-constructor
+  (lambda (constructors)
+    (if (null? constructors)
+        '((()()))
+        constructors)))
 
 (define add-to-constructors
   (lambda (var-assigns constructors)
@@ -54,3 +60,4 @@
       ((null? body) '())
       ((eq? (caar body) 'var) (cons (cons '= (cdar body)) (get-var-assigns (cdr body))))
       (else (get-var-assigns (cdr body))))))
+
