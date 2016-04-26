@@ -13,7 +13,7 @@
 
 (define build-class
   (lambda (class)
-    (list (name class) (parse-parent (parent class)) (parse-vars (class-body class)) (parse-funcs (class-body class)) (add-to-constructors (get-var-assigns (class-body class)) (ensure-constructor (parse-constructors (class-body class)))))))
+    (list (name class) (parse-parent (parent class)) (parse-vars (class-body class)) (configure-funcs (name class) (parse-funcs (class-body class))) (add-to-constructors (get-var-assigns (class-body class)) (ensure-constructor (parse-constructors (class-body class)))))))
 
 (define parse-parent
   (lambda (parent-line)
@@ -34,6 +34,12 @@
       ((null? body) '())
       ((or (eq? (caar body) 'function) (eq? (caar body) 'static-function)) (cons (cdar body) (parse-funcs (cdr body))))
       (else (parse-funcs (cdr body))))))
+
+(define configure-funcs
+  (lambda (class-name funcs)
+    (if (null? funcs)
+        funcs
+        (cons (append (car funcs) (cons class-name '())) (configure-funcs class-name (cdr funcs))))))
 
 (define parse-constructors
   (lambda (body)

@@ -9,7 +9,7 @@
 ; Returns ((()()))
 (define empty-state-stack
   (lambda ()
-    (cons (empty-state) '())))
+    (cons (empty-state) '(()()) )))
 
 (define stack-push
   (lambda (s stack)
@@ -69,3 +69,13 @@
       ((null? stack) (error var "variable not declared"))
       ((state-declared? var (stack-peek stack)) (stack-push (state-assign var val (stack-peek stack)) (stack-pop stack)))
       (else (stack-push (stack-peek stack) (stack-assign var val (stack-pop stack)))))))
+
+;(define set-instance
+;  (lambda (instance stack)
+;    (stack-assign 'instance instance stack)))
+
+;(define get-instance
+;  (lambda (stack)
+;    (stack-get 'instance stack)))
+                           
+  

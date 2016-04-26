@@ -46,6 +46,7 @@
       ((eq? func-name (caar funcs)) (car funcs))
       (else (find-func func-name (cdr funcs))))))
 
+; returns (name )
 (define get-func
   (lambda (class-name func-name heap)
     (cond
@@ -53,10 +54,17 @@
       ((null? (find-func func-name (find-funcs class-name heap))) (get-func (get-parent class-name heap) func-name heap))
       (else (find-func func-name (find-funcs class-name heap))))))
 
+(define has-func
+  (lambda (class-name func-name heap)
+    (cond
+      ((null? class-name) #f)
+      ((null? (find-func func-name (find-funcs class-name heap))) (get-func (get-parent class-name heap) func-name heap))
+      (else #t))))
+
 (define get-var
   (lambda (class-name instance-name var-name var-vals heap)
     (cond
-      ((null? class-name) (error "function does not exist"))
+      ((null? class-name) (error "field does not exist"))
       ((not (eq? class-name instance-name)) (get-var class-name (get-parent instance-name heap) var-name (cdr var-vals) heap))
       ((eq? (find-var var-name (car var-vals) (find-vars class-name heap)) "DOESNOTEXIST") (get-var (get-parent class-name heap) (get-parent instance-name heap) var-name (cdr var-vals) heap))
       (else (find-var var-name (car var-vals) (find-vars class-name heap))))))
@@ -70,3 +78,31 @@
       ((eq? (find-var var-name (car var-vals) (find-vars class-name heap)) "DOESNOTEXIST") (cons (car var-vals) (set-var (get-parent class-name heap) (get-parent instance-name heap) var-name val (cdr var-vals) heap)))
       (else (cons (find-set-var var-name val (car var-vals) (find-vars class-name heap)) (cdr var-vals))))))
 
+;returns list of instructions in constructor
+(define get-constructor
+  (lambda (class-name h)
+    (cadar (class-constructors (find-class class-name h))))) ; returning first constructor for now
+
+; (A ((3 4)(2 1 1)(2))) --> A
+(define instance-type
+  (lambda (instance)
+    (car instance)))
+; (A ((3 4))) --> (A (()(3 4)))
+(define add-var-layer-to-instance
+  (lambda (instance layer)
+    (cons (car instance) (cons (cons layer (cadr instance)) '()))))
+
+; (A ((3 4)(2 1 1)(2))) --> ((3 4)(2 1 1)(2))
+(define instance-vals
+  (lambda (instance)
+    (cadr instance)))
+
+(define class-constructors
+  (lambda (class)
+    (car (cddddr class))))
+
+(define class-parent
+  (lambda (class)
+    (cadr class)))
+  
+  
