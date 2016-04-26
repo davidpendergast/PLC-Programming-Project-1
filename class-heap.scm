@@ -58,7 +58,7 @@
   (lambda (class-name func-name heap)
     (cond
       ((null? class-name) #f)
-      ((null? (find-func func-name (find-funcs class-name heap))) (get-func (get-parent class-name heap) func-name heap))
+      ((null? (find-func func-name (find-funcs class-name heap))) (has-func (get-parent class-name heap) func-name heap))
       (else #t))))
 
 (define get-var
@@ -68,6 +68,10 @@
       ((not (eq? class-name instance-name)) (get-var class-name (get-parent instance-name heap) var-name (cdr var-vals) heap))
       ((eq? (find-var var-name (car var-vals) (find-vars class-name heap)) "DOESNOTEXIST") (get-var (get-parent class-name heap) (get-parent instance-name heap) var-name (cdr var-vals) heap))
       (else (find-var var-name (car var-vals) (find-vars class-name heap))))))
+
+(define set-instance-var
+  (lambda (instance var-name val heap)
+    (list (car instance) (set-var (car instance) (car instance) var-name val (cdr instance) heap))))
 
 ;returns var-vals of an instance
 (define set-var
